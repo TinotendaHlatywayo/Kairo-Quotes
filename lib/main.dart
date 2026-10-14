@@ -1,11 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'core/providers.dart';
+import 'data/app_database.dart';
+import 'features/settings/settings_screen.dart';
 
 void main() {
-  runApp(const EmQuotesApp());
+  runApp(const ProviderScope(child: KairoQuotesApp()));
 }
 
-class EmQuotesApp extends StatelessWidget {
-  const EmQuotesApp({super.key});
+class KairoQuotesApp extends StatelessWidget {
+  const KairoQuotesApp({super.key});
 
   static const navy = Color(0xFF102D52);
   static const blue = Color(0xFF3B82B8);
@@ -19,13 +26,21 @@ class EmQuotesApp extends StatelessWidget {
       secondary: blue,
       surface: const Color(0xFFF8FAFC),
     );
+    final baseTextTheme = ThemeData.light().textTheme;
     return MaterialApp(
-      title: 'EM Quotes',
+      title: 'Kairo Quotes',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: scheme,
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        fontFamily: 'EMBody',
+        textTheme: baseTextTheme.apply(fontFamily: 'EMBody').copyWith(
+          headlineSmall: baseTextTheme.headlineSmall?.copyWith(
+            fontFamily: 'EMDisplay',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: navy,
           foregroundColor: Colors.white,
@@ -38,37 +53,119 @@ class EmQuotesApp extends StatelessWidget {
           border: OutlineInputBorder(),
         ),
       ),
-      home: const HomeScreen(),
+      home: const StartupGate(),
     );
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class StartupGate extends ConsumerWidget {
+  const StartupGate({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(companyProfileProvider);
+    return profile.when(
+      data: (savedProfile) {
+        if (savedProfile != null) return HomeScreen(profile: savedProfile);
+        return ref.watch(defaultTermsProvider).when(
+          data: (terms) => SettingsScreen(profile: null, terms: terms),
+          loading: _loadingScreen,
+          error: (error, stack) => _errorScreen(ref, error),
+        );
+      },
+      loading: _loadingScreen,
+      error: (error, stack) => _errorScreen(ref, error),
+    );
+  }
+
+  static Widget _loadingScreen() => const Scaffold(
+    body: Center(child: CircularProgressIndicator()),
+  );
+
+  static Widget _errorScreen(WidgetRef ref, Object error) => Scaffold(
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Kairo Quotes could not open its local database.'),
+            const SizedBox(height: 8),
+            Text('$error', textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () {
+                ref.invalidate(companyProfileProvider);
+                ref.invalidate(defaultTermsProvider);
+              },
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({required this.profile, super.key});
+
+  final CompanyProfileData profile;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('EM Quotes')),
+      appBar: AppBar(
+        title: const Text('Kairo Quotes'),
+        actions: [
+          IconButton(
+            tooltip: 'Company settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              final terms = ref.read(defaultTermsProvider).asData?.value;
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SettingsScreen(profile: profile, terms: terms),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.water_drop,
-                size: 64,
-                color: Theme.of(context).colorScheme.secondary,
-              ),
+              if (profile.logoPath != null && File(profile.logoPath!).existsSync())
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Image.file(
+                    File(profile.logoPath!),
+                    height: 96,
+                    fit: BoxFit.contain,
+                  ),
+                )
+              else
+                Icon(
+                  Icons.water_drop,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
               const SizedBox(height: 16),
               Text(
-                'EM Quotes is running',
+                'Kairo Quotes is running',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: EmQuotesApp.navy,
+                  color: KairoQuotesApp.navy,
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                profile.companyName,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
               Text(
