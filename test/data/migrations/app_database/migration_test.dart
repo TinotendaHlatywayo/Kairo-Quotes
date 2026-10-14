@@ -9,6 +9,7 @@ import 'generated/schema.dart';
 
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v3.dart' as v3;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -156,4 +157,59 @@ void main() {
       },
     );
   });
+
+  test(
+    'migration from v2 to v3 maps issued quotations to sent and audits it',
+    () async {
+      final issuedAt = DateTime.utc(2026, 1, 2).millisecondsSinceEpoch;
+      final oldQuote = v2.DocumentsData(
+        id: 7,
+        documentType: 'quotation',
+        status: 'issued',
+        documentNumber: 'QT-0007',
+        currencyCode: 'USD',
+        vatRateBasisPoints: 1500,
+        discountKind: 'none',
+        discountValue: 0,
+        notes: '',
+        termsSnapshot: 'Saved terms',
+        customerNameSnapshot: 'Old customer snapshot',
+        customerLocationSnapshot: '',
+        customerPhoneSnapshot: '',
+        companyNameSnapshot: 'EM Borehole Drilling',
+        legalNameSnapshot: '',
+        addressSnapshot: '',
+        phoneNumbersSnapshot: '',
+        taglineSnapshot: '',
+        signatorySnapshot: '',
+        validityDays: 30,
+        createdAt: issuedAt - 1000,
+        issuedAt: issuedAt,
+        expiresAt: issuedAt + const Duration(days: 30).inMilliseconds,
+        updatedAt: issuedAt,
+      );
+      await verifier.testWithDataIntegrity(
+        oldVersion: 2,
+        newVersion: 3,
+        createOld: v2.DatabaseAtV2.new,
+        createNew: v3.DatabaseAtV3.new,
+        openTestedDatabase: (executor) => AppDatabase(executor: executor),
+        createItems: (batch, oldDb) {
+          batch.insertAll(oldDb.documents, [oldQuote]);
+        },
+        validateItems: (newDb) async {
+          final quote = await newDb.select(newDb.documents).getSingle();
+          expect(quote.id, oldQuote.id);
+          expect(quote.documentNumber, oldQuote.documentNumber);
+          expect(quote.termsSnapshot, oldQuote.termsSnapshot);
+          expect(quote.status, 'sent');
+          final audit = await newDb.select(newDb.auditLogs).getSingle();
+          expect(audit.entityId, oldQuote.id);
+          expect(audit.action, 'sent');
+          expect(audit.beforeSummary, 'issued');
+          expect(audit.afterSummary, 'sent');
+        },
+      );
+    },
+  );
 }

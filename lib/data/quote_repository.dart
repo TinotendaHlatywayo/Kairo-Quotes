@@ -43,18 +43,59 @@ class QuoteDraft {
   final bool saveTermsAsDefault;
 }
 
+enum QuoteStatus { draft, sent, accepted, rejected, expired }
+
+extension QuoteStatusLabel on QuoteStatus {
+  String get value => name;
+  String get label => switch (this) {
+    QuoteStatus.draft => 'Draft',
+    QuoteStatus.sent => 'Sent',
+    QuoteStatus.accepted => 'Accepted',
+    QuoteStatus.rejected => 'Rejected',
+    QuoteStatus.expired => 'Expired',
+  };
+}
+
 class QuoteRepository {
   const QuoteRepository(this._db);
   final AppDatabase _db;
 
-  Stream<List<DocumentData>> watchQuotes() =>
+  Stream<List<DocumentData>> watchQuotes({
+    String search = '',
+    String status = 'all',
+    DateTime? from,
+    DateTime? through,
+  }) =>
       (_db.select(_db.documents)
             ..where((d) => d.documentType.equals('quotation'))
             ..orderBy([
               (d) => OrderingTerm.desc(d.createdAt),
               (d) => OrderingTerm.desc(d.id),
             ]))
-          .watch();
+          .watch()
+          .map((rows) {
+            final query = search.trim().toLowerCase();
+            final throughExclusive = through?.add(const Duration(days: 1));
+            return rows
+                .where((quote) {
+                  if (status != 'all' && quote.status != status) return false;
+                  if (from != null && quote.createdAt.isBefore(from)) {
+                    return false;
+                  }
+                  if (throughExclusive != null &&
+                      !quote.createdAt.isBefore(throughExclusive)) {
+                    return false;
+                  }
+                  if (query.isEmpty) return true;
+                  return quote.customerNameSnapshot.toLowerCase().contains(
+                        query,
+                      ) ||
+                      (quote.documentNumber?.toLowerCase().contains(query) ??
+                          false) ||
+                      quote.status.toLowerCase().contains(query);
+                })
+                .toList(growable: false);
+          });
 
   Future<DocumentData?> getQuote(int id) async =>
       (_db.select(
@@ -67,6 +108,161 @@ class QuoteRepository {
             ..where((line) => line.documentId.equals(id))
             ..orderBy([(line) => OrderingTerm.asc(line.sortOrder)]))
           .get();
+
+  Future<List<AuditLogData>> getAuditTrail(int id) =>
+      (_db.select(_db.auditLogs)
+            ..where(
+              (entry) =>
+                  entry.entityType.equals('quotation') &
+                  entry.entityId.equals(id),
+            )
+            ..orderBy([(entry) => OrderingTerm.asc(entry.occurredAt)]))
+          .get();
+
+  /// Persists expired state once per quote, with an audit entry for each change.
+  Future<int> expireDueQuotes({DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    return _db.transaction(() async {
+      final due =
+          await (_db.select(_db.documents)..where(
+                (d) =>
+                    d.documentType.equals('quotation') &
+                    d.status.equals(QuoteStatus.sent.value) &
+                    d.expiresAt.isSmallerOrEqualValue(at),
+              ))
+              .get();
+      for (final quote in due) {
+        await (_db.update(
+          _db.documents,
+        )..where((d) => d.id.equals(quote.id))).write(
+          DocumentsCompanion(
+            status: Value(QuoteStatus.expired.value),
+            updatedAt: Value(at),
+          ),
+        );
+        await _audit(
+          quote.id,
+          'expired',
+          before: 'sent',
+          after: 'expired',
+          at: at,
+        );
+      }
+      return due.length;
+    });
+  }
+
+  Future<void> accept(int id) => _transition(id, QuoteStatus.accepted);
+  Future<void> reject(int id) => _transition(id, QuoteStatus.rejected);
+
+  Future<void> _transition(int id, QuoteStatus target) async {
+    if (target != QuoteStatus.accepted && target != QuoteStatus.rejected) {
+      throw ArgumentError('Unsupported quotation transition.');
+    }
+    await expireDueQuotes();
+    await _db.transaction(() async {
+      final quote = await getQuote(id);
+      if (quote == null) throw StateError('Quotation no longer exists.');
+      if (quote.status != QuoteStatus.sent.value) {
+        throw StateError(
+          'Only sent, unexpired quotations can be ${target.label.toLowerCase()}.',
+        );
+      }
+      final now = DateTime.now();
+      await (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
+        DocumentsCompanion(status: Value(target.value), updatedAt: Value(now)),
+      );
+      await _audit(
+        id,
+        target.value,
+        before: quote.status,
+        after: target.value,
+        at: now,
+      );
+    });
+  }
+
+  Future<int> revise(int sourceId) async {
+    return _db.transaction(() async {
+      final source = await getQuote(sourceId);
+      if (source == null) throw StateError('Quotation no longer exists.');
+      if (source.status == QuoteStatus.draft.value) {
+        throw StateError('Draft quotations can be edited directly.');
+      }
+      final id = await _insertCopy(source, replacesDocumentId: source.id);
+      await _audit(source.id, 'revision_created', after: 'draft:$id');
+      return id;
+    });
+  }
+
+  Future<int> _insertCopy(
+    DocumentData source, {
+    int? replacesDocumentId,
+  }) async {
+    final id = await _db
+        .into(_db.documents)
+        .insert(
+          DocumentsCompanion.insert(
+            documentType: 'quotation',
+            status: 'draft',
+            customerId: Value(source.customerId),
+            replacesDocumentId: Value(replacesDocumentId),
+            currencyCode: source.currencyCode,
+            vatRateBasisPoints: Value(source.vatRateBasisPoints),
+            discountKind: Value(source.discountKind),
+            discountValue: Value(source.discountValue),
+            termsSnapshot: Value(source.termsSnapshot),
+            customerNameSnapshot: Value(source.customerNameSnapshot),
+            customerLocationSnapshot: Value(source.customerLocationSnapshot),
+            customerPhoneSnapshot: Value(source.customerPhoneSnapshot),
+            companyNameSnapshot: Value(source.companyNameSnapshot),
+            legalNameSnapshot: Value(source.legalNameSnapshot),
+            addressSnapshot: Value(source.addressSnapshot),
+            phoneNumbersSnapshot: Value(source.phoneNumbersSnapshot),
+            taglineSnapshot: Value(source.taglineSnapshot),
+            signatorySnapshot: Value(source.signatorySnapshot),
+            vatNumberSnapshot: Value(source.vatNumberSnapshot),
+            tinNumberSnapshot: Value(source.tinNumberSnapshot),
+            logoPathSnapshot: Value(source.logoPathSnapshot),
+            validityDays: Value(source.validityDays),
+          ),
+        );
+    for (final line in await getLines(source.id)) {
+      await _db
+          .into(_db.documentLines)
+          .insert(
+            DocumentLinesCompanion.insert(
+              documentId: id,
+              sortOrder: line.sortOrder,
+              isSectionHeader: Value(line.isSectionHeader),
+              designation: line.designation,
+              unit: Value(line.unit),
+              unitPriceMinor: Value(line.unitPriceMinor),
+              quantityMilli: Value(line.quantityMilli),
+            ),
+          );
+    }
+    return id;
+  }
+
+  Future<void> _audit(
+    int id,
+    String action, {
+    String? before,
+    String? after,
+    DateTime? at,
+  }) => _db
+      .into(_db.auditLogs)
+      .insert(
+        AuditLogsCompanion.insert(
+          entityType: 'quotation',
+          entityId: id,
+          action: action,
+          occurredAt: Value(at ?? DateTime.now()),
+          beforeSummary: Value(before),
+          afterSummary: Value(after),
+        ),
+      );
 
   Future<int> saveDraft(QuoteDraft draft, {int? id}) =>
       _save(draft, id: id, issue: false);
@@ -195,7 +391,7 @@ class QuoteRepository {
         );
     await (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
       DocumentsCompanion(
-        status: const Value('issued'),
+        status: const Value('sent'),
         documentNumber: Value(number),
         issuedAt: Value(now),
         expiresAt: Value(
@@ -204,17 +400,7 @@ class QuoteRepository {
         updatedAt: Value(now),
       ),
     );
-    await _db
-        .into(_db.auditLogs)
-        .insert(
-          AuditLogsCompanion.insert(
-            entityType: 'quotation',
-            entityId: id,
-            action: 'issued',
-            occurredAt: Value(now),
-            afterSummary: Value(number),
-          ),
-        );
+    await _audit(id, 'sent', after: number, at: now);
   }
 
   Future<void> _saveDefaultTerms(String content, DateTime now) async {
@@ -252,50 +438,7 @@ class QuoteRepository {
     return _db.transaction(() async {
       final source = await getQuote(sourceId);
       if (source == null) throw StateError('Quotation no longer exists.');
-      final id = await _db
-          .into(_db.documents)
-          .insert(
-            DocumentsCompanion.insert(
-              documentType: 'quotation',
-              status: 'draft',
-              customerId: Value(source.customerId),
-              currencyCode: source.currencyCode,
-              vatRateBasisPoints: Value(source.vatRateBasisPoints),
-              discountKind: Value(source.discountKind),
-              discountValue: Value(source.discountValue),
-              termsSnapshot: Value(source.termsSnapshot),
-              customerNameSnapshot: Value(source.customerNameSnapshot),
-              customerLocationSnapshot: Value(source.customerLocationSnapshot),
-              customerPhoneSnapshot: Value(source.customerPhoneSnapshot),
-              companyNameSnapshot: Value(source.companyNameSnapshot),
-              legalNameSnapshot: Value(source.legalNameSnapshot),
-              addressSnapshot: Value(source.addressSnapshot),
-              phoneNumbersSnapshot: Value(source.phoneNumbersSnapshot),
-              taglineSnapshot: Value(source.taglineSnapshot),
-              signatorySnapshot: Value(source.signatorySnapshot),
-              vatNumberSnapshot: Value(source.vatNumberSnapshot),
-              tinNumberSnapshot: Value(source.tinNumberSnapshot),
-              logoPathSnapshot: Value(source.logoPathSnapshot),
-              validityDays: Value(source.validityDays),
-            ),
-          );
-      final lines = await getLines(sourceId);
-      for (final line in lines) {
-        await _db
-            .into(_db.documentLines)
-            .insert(
-              DocumentLinesCompanion.insert(
-                documentId: id,
-                sortOrder: line.sortOrder,
-                isSectionHeader: Value(line.isSectionHeader),
-                designation: line.designation,
-                unit: Value(line.unit),
-                unitPriceMinor: Value(line.unitPriceMinor),
-                quantityMilli: Value(line.quantityMilli),
-              ),
-            );
-      }
-      return id;
+      return _insertCopy(source);
     });
   }
 

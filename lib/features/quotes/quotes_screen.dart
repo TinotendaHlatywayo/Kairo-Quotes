@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -10,10 +12,43 @@ import '../../domain/pricing_engine.dart';
 import '../customers/customers_screen.dart';
 import 'quote_pdf.dart';
 
-class QuotesScreen extends ConsumerWidget {
+class QuotesScreen extends ConsumerStatefulWidget {
   const QuotesScreen({super.key});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QuotesScreen> createState() => _QuotesScreenState();
+}
+
+class _QuotesScreenState extends ConsumerState<QuotesScreen> {
+  String _search = '';
+  String _status = 'all';
+  DateTime? _from;
+  DateTime? _through;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(ref.read(quoteRepositoryProvider).expireDueQuotes());
+  }
+
+  Future<void> _chooseDates() async {
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: _from == null || _through == null
+          ? null
+          : DateTimeRange(start: _from!, end: _through!),
+    );
+    if (range != null) {
+      setState(() {
+        _from = range.start;
+        _through = range.end;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final repository = ref.watch(quoteRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Quotations')),
@@ -24,48 +59,123 @@ class QuotesScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('New quote'),
       ),
-      body: StreamBuilder<List<DocumentData>>(
-        stream: repository.watchQuotes(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Could not load quotations: ${snapshot.error}'),
-            );
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final quotes = snapshot.data!;
-          if (quotes.isEmpty) {
-            return const Center(
-              child: Text('No quotations yet. Create one to get started.'),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.only(bottom: 90),
-            itemCount: quotes.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final q = quotes[index];
-              return ListTile(
-                leading: Icon(
-                  q.status == 'issued' ? Icons.description : Icons.edit_note,
-                ),
-                title: Text(q.documentNumber ?? 'Draft quotation'),
-                subtitle: Text(
-                  '${q.customerNameSnapshot}\n${q.status.toUpperCase()} · ${_date(q.createdAt)}',
-                ),
-                isThreeLine: true,
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => QuoteEditorScreen(quoteId: q.id),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'Search quotations',
+                prefixIcon: Icon(Icons.search),
+                suffixIcon: Icon(Icons.manage_search),
+              ),
+              onChanged: (value) => setState(() => _search = value),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: [
+                      const DropdownMenuItem(
+                        value: 'all',
+                        child: Text('All statuses'),
+                      ),
+                      ...QuoteStatus.values.map(
+                        (s) => DropdownMenuItem(
+                          value: s.value,
+                          child: Text(s.label),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _status = value ?? 'all'),
                   ),
                 ),
-              );
-            },
-          );
-        },
+                IconButton(
+                  tooltip: 'Filter by date',
+                  onPressed: _chooseDates,
+                  icon: const Icon(Icons.date_range),
+                ),
+                if (_from != null || _through != null)
+                  IconButton(
+                    tooltip: 'Clear date filter',
+                    onPressed: () => setState(() {
+                      _from = null;
+                      _through = null;
+                    }),
+                    icon: const Icon(Icons.filter_alt_off),
+                  ),
+              ],
+            ),
+          ),
+          if (_from != null && _through != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('${_date(_from!)} – ${_date(_through!)}'),
+            ),
+          Expanded(
+            child: StreamBuilder<List<DocumentData>>(
+              stream: repository.watchQuotes(
+                search: _search,
+                status: _status,
+                from: _from,
+                through: _through,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Could not load quotations: ${snapshot.error}'),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final quotes = snapshot.data!;
+                if (quotes.isEmpty) {
+                  return const Center(
+                    child: Text('No quotations match these filters.'),
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await repository.expireDueQuotes();
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 90),
+                    itemCount: quotes.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final q = quotes[index];
+                      return ListTile(
+                        leading: Icon(
+                          q.status == QuoteStatus.draft.value
+                              ? Icons.edit_note
+                              : Icons.description,
+                        ),
+                        title: Text(q.documentNumber ?? 'Draft quotation'),
+                        subtitle: Text(
+                          '${q.customerNameSnapshot}\n${q.status.toUpperCase()} · ${_date(q.createdAt)}${q.expiresAt == null ? '' : ' · until ${_date(q.expiresAt!)}'}',
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => QuoteEditorScreen(quoteId: q.id),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -95,6 +205,7 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
   bool _locked = false;
   int? _id;
   DocumentData? _quote;
+  DocumentData? _revisionSource;
   String? _error;
   final List<_QuoteLine> _lines = [];
   List<int?>? _undoPrices;
@@ -142,6 +253,11 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
     _quote = await ref.read(quoteRepositoryProvider).getQuote(_id!);
     if (_quote == null) throw StateError('Quotation no longer exists.');
     final quote = _quote!;
+    if (quote.replacesDocumentId != null) {
+      _revisionSource = await ref
+          .read(quoteRepositoryProvider)
+          .getQuote(quote.replacesDocumentId!);
+    }
     _locked = quote.status != 'draft';
     _customerId = quote.customerId;
     _currency = quote.currencyCode;
@@ -509,6 +625,65 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
     }
   }
 
+  Future<void> _revise() async {
+    try {
+      final id = await ref.read(quoteRepositoryProvider).revise(_id!);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => QuoteEditorScreen(quoteId: id)),
+      );
+    } catch (error) {
+      _message('Could not create revision: $error');
+    }
+  }
+
+  Future<void> _setOutcome({required bool accept}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${accept ? 'Accept' : 'Reject'} quotation?'),
+        content: const Text(
+          'This decision is recorded in the quotation audit history.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(accept ? 'Accept' : 'Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final repository = ref.read(quoteRepositoryProvider);
+      if (accept) {
+        await repository.accept(_id!);
+      } else {
+        await repository.reject(_id!);
+      }
+      _quote = await repository.getQuote(_id!);
+      if (mounted) {
+        setState(() {
+          _locked = true;
+          _error = null;
+        });
+      }
+    } catch (error) {
+      final updated = await ref.read(quoteRepositoryProvider).getQuote(_id!);
+      if (mounted) {
+        setState(() {
+          _quote = updated;
+          _locked = updated?.status != QuoteStatus.draft.value;
+          _error = '$error';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<void>(
     future: _load,
@@ -546,6 +721,7 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
                   if (v == 'preview') _openPdf(share: false);
                   if (v == 'share') _openPdf(share: true);
                   if (v == 'duplicate') _duplicate();
+                  if (v == 'revise') _revise();
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(
@@ -557,6 +733,11 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
                     value: 'duplicate',
                     child: Text('Duplicate as draft'),
                   ),
+                  if (_quote?.status != QuoteStatus.draft.value)
+                    const PopupMenuItem(
+                      value: 'revise',
+                      child: Text('Create revision'),
+                    ),
                 ],
               ),
           ],
@@ -567,10 +748,41 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
             if (_locked)
               Card(
                 color: Theme.of(context).colorScheme.primaryContainer,
-                child: const ListTile(
-                  leading: Icon(Icons.lock_outline),
-                  title: Text('Issued quotation is locked'),
-                  subtitle: Text('Duplicate it to create an editable draft.'),
+                child: ListTile(
+                  leading: const Icon(Icons.lock_outline),
+                  title: Text(
+                    'Quotation ${_quote?.status.toUpperCase() ?? 'LOCKED'}',
+                  ),
+                  subtitle: Text(
+                    _revisionSource == null
+                        ? (_quote?.expiresAt == null
+                              ? 'Issued quotations are locked. Create a revision to edit.'
+                              : 'Valid until ${_dateLabel(_quote!.expiresAt!)}. Create a revision to edit.')
+                        : 'Revision of ${_revisionSource!.documentNumber ?? 'quotation'} · create a new revision to edit.',
+                  ),
+                ),
+              ),
+            if (_quote?.status == QuoteStatus.sent.value)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _setOutcome(accept: false),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Reject'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _setOutcome(accept: true),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Accept'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             Row(
@@ -841,6 +1053,29 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
                   label: const Text('Share quotation PDF'),
                 ),
               ),
+            if (_id != null)
+              FutureBuilder<List<AuditLogData>>(
+                future: ref.read(quoteRepositoryProvider).getAuditTrail(_id!),
+                builder: (context, snapshot) => ExpansionTile(
+                  title: const Text('Audit history'),
+                  subtitle: Text(
+                    '${snapshot.data?.length ?? 0} recorded events',
+                  ),
+                  children: [
+                    for (final entry in snapshot.data ?? const <AuditLogData>[])
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.history),
+                        title: Text(
+                          entry.action.replaceAll('_', ' ').toUpperCase(),
+                        ),
+                        subtitle: Text(
+                          '${_dateTime(entry.occurredAt)}${entry.beforeSummary == null ? '' : ' · ${entry.beforeSummary}'}${entry.afterSummary == null ? '' : ' → ${entry.afterSummary}'}',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
           ],
         ),
       );
@@ -965,6 +1200,11 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
       ),
     );
   }
+
+  static String _dateLabel(DateTime date) =>
+      '${date.day}/${date.month}/${date.year}';
+  static String _dateTime(DateTime date) =>
+      '${_dateLabel(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
   static int _parseMinor(String input) {
     final match = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(input.trim());

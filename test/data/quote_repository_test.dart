@@ -69,10 +69,10 @@ void main() {
 
     await quotes.saveAndIssue(draft(), id: id);
     row = (await quotes.getQuote(id))!;
-    expect(row.status, 'issued');
+    expect(row.status, 'sent');
     expect(row.documentNumber, 'Q-001');
     expect(row.expiresAt!.difference(row.issuedAt!).inDays, 30);
-    expect((await db.select(db.auditLogs).get()).single.action, 'issued');
+    expect((await db.select(db.auditLogs).get()).single.action, 'sent');
     expect((await db.select(db.numberSequences).get()).single.nextNumber, 2);
   });
 
@@ -113,5 +113,87 @@ void main() {
     );
     expect((await quotes.getQuote(id))!.status, 'draft');
     expect((await db.select(db.numberSequences).get()).single.nextNumber, 1);
+  });
+
+  test(
+    'sent quotations can be accepted or rejected and record status history',
+    () async {
+      final acceptedId = await quotes.saveAndIssue(draft());
+      await quotes.accept(acceptedId);
+      expect((await quotes.getQuote(acceptedId))!.status, 'accepted');
+
+      final rejectedId = await quotes.saveAndIssue(draft());
+      await quotes.reject(rejectedId);
+      expect((await quotes.getQuote(rejectedId))!.status, 'rejected');
+      expect((await quotes.getAuditTrail(acceptedId)).map((e) => e.action), [
+        'sent',
+        'accepted',
+      ]);
+      expect((await quotes.getAuditTrail(rejectedId)).map((e) => e.action), [
+        'sent',
+        'rejected',
+      ]);
+      await expectLater(quotes.reject(acceptedId), throwsStateError);
+    },
+  );
+
+  test(
+    'expiry is recorded once and an expired quote cannot be accepted',
+    () async {
+      final id = await quotes.saveAndIssue(draft());
+      final expiredAt = DateTime.now().add(const Duration(seconds: 1));
+      await (db.update(db.documents)..where((row) => row.id.equals(id))).write(
+        DocumentsCompanion(
+          expiresAt: Value(expiredAt),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      final expirationRun = expiredAt.add(const Duration(milliseconds: 1));
+      expect(await quotes.expireDueQuotes(now: expirationRun), 1);
+      expect(
+        await quotes.expireDueQuotes(
+          now: expirationRun.add(const Duration(days: 1)),
+        ),
+        0,
+      );
+      expect((await quotes.getQuote(id))!.status, 'expired');
+      expect((await quotes.getAuditTrail(id)).map((e) => e.action), [
+        'sent',
+        'expired',
+      ]);
+      await expectLater(quotes.accept(id), throwsStateError);
+    },
+  );
+
+  test(
+    'revision preserves the sent quote and links an editable snapshot copy',
+    () async {
+      final id = await quotes.saveAndIssue(draft());
+      final revisionId = await quotes.revise(id);
+      final source = (await quotes.getQuote(id))!;
+      final revision = (await quotes.getQuote(revisionId))!;
+      expect(source.status, 'sent');
+      expect(revision.status, 'draft');
+      expect(revision.replacesDocumentId, id);
+      expect(revision.documentNumber, isNull);
+      expect((await quotes.getLines(revisionId)).single.unitPriceMinor, 10000);
+      expect((await quotes.getAuditTrail(id)).last.action, 'revision_created');
+      await expectLater(quotes.revise(revisionId), throwsStateError);
+    },
+  );
+
+  test('quote search and status filters include customer and number', () async {
+    final sentId = await quotes.saveAndIssue(draft());
+    final draftId = await quotes.saveDraft(draft());
+    expect(await quotes.watchQuotes(status: 'sent').first, hasLength(1));
+    expect(await quotes.watchQuotes(search: 'Q-001').first, hasLength(1));
+    expect(
+      await quotes.watchQuotes(search: 'customer', status: 'draft').first,
+      hasLength(1),
+    );
+    expect(
+      (await quotes.watchQuotes().first).map((q) => q.id),
+      containsAll([sentId, draftId]),
+    );
   });
 }

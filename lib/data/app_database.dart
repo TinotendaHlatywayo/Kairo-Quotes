@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -62,6 +62,18 @@ class AppDatabase extends _$AppDatabase {
         schema.catalogItems,
         schema.catalogItems.defaultPriceCurrencyCode,
       ),
+      from2To3: (m, schema) async {
+        await m.database.customStatement('''
+          INSERT INTO audit_logs (entity_type, entity_id, action, occurred_at, before_summary, after_summary, actor)
+          SELECT 'quotation', id, 'sent', COALESCE(issued_at, created_at), 'issued', 'sent', 'system'
+          FROM documents
+          WHERE document_type = 'quotation' AND status = 'issued'
+        ''');
+        await m.database.customStatement('''
+          UPDATE documents SET status = 'sent'
+          WHERE document_type = 'quotation' AND status = 'issued'
+        ''');
+      },
     ),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
