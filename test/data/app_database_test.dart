@@ -22,7 +22,7 @@ void main() {
         .get();
     final tableNames = tableRows.map((row) => row.read<String>('name')).toSet();
 
-    expect(database.schemaVersion, 3);
+    expect(database.schemaVersion, 4);
     expect(
       tableNames,
       containsAll([

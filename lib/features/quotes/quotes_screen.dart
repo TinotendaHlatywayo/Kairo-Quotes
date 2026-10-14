@@ -11,6 +11,7 @@ import '../../domain/money.dart';
 import '../../domain/pricing_engine.dart';
 import '../customers/customers_screen.dart';
 import 'quote_pdf.dart';
+import '../invoices/invoices_screen.dart';
 
 class QuotesScreen extends ConsumerStatefulWidget {
   const QuotesScreen({super.key});
@@ -684,6 +685,23 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
     }
   }
 
+  Future<void> _openInvoice() async {
+    try {
+      final repo = ref.read(invoiceRepositoryProvider);
+      final existing = await repo.invoiceForQuote(_id!);
+      final invoiceId =
+          existing?.id ?? await repo.createFromAcceptedQuote(_id!);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => InvoiceDetailScreen(invoiceId: invoiceId),
+        ),
+      );
+    } catch (e) {
+      _message('$e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<void>(
     future: _load,
@@ -783,6 +801,15 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            if (_quote?.status == QuoteStatus.accepted.value)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: FilledButton.icon(
+                  onPressed: _openInvoice,
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Create or open invoice'),
                 ),
               ),
             Row(

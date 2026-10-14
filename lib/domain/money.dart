@@ -40,7 +40,9 @@ class Quantity {
     final value = input.trim();
     final match = RegExp(r'^([+-]?)(\d+)(?:\.(\d{1,3}))?$').firstMatch(value);
     if (match == null) {
-      throw FormatException('Enter a quantity with up to three decimal places.');
+      throw FormatException(
+        'Enter a quantity with up to three decimal places.',
+      );
     }
     final sign = match.group(1) == '-' ? -1 : 1;
     final whole = int.parse(match.group(2)!);
@@ -54,7 +56,9 @@ class Quantity {
     final whole = absolute ~/ 1000;
     final fraction = (absolute % 1000).toString().padLeft(3, '0');
     final trimmedFraction = fraction.replaceFirst(RegExp(r'0+$'), '');
-    return trimmedFraction.isEmpty ? '$sign$whole' : '$sign$whole.$trimmedFraction';
+    return trimmedFraction.isEmpty
+        ? '$sign$whole'
+        : '$sign$whole.$trimmedFraction';
   }
 }
 
@@ -110,13 +114,35 @@ class MoneyFormatter {
   }
 }
 
+/// Parses a typed currency amount directly into integer minor units.
+int parseMoneyToMinor(String input, String currencyCode) {
+  final places = CurrencySpec.forCode(currencyCode).decimalPlaces;
+  final value = input.trim().replaceAll(',', '.');
+  final match = RegExp(r'^([+-]?)(\d+)(?:\.(\d+))?$').firstMatch(value);
+  if (match == null) throw const FormatException('Enter a valid amount.');
+  final fraction = match.group(3) ?? '';
+  if (fraction.length > places) {
+    throw FormatException('Enter no more than $places decimal places.');
+  }
+  var scale = 1;
+  for (var i = 0; i < places; i++) {
+    scale *= 10;
+  }
+  final minor =
+      int.parse(match.group(2)!) * scale +
+      (fraction.isEmpty ? 0 : int.parse(fraction.padRight(places, '0')));
+  return match.group(1) == '-' ? -minor : minor;
+}
+
 /// Parses percentages entered as human-readable percent values into basis points.
 /// For example, `15.25` percent becomes 1525 basis points.
 int parsePercentToBasisPoints(String input) {
   final normalized = input.trim().replaceAll(',', '.');
   final match = RegExp(r'^(\d{1,3})(?:\.(\d{1,2}))?$').firstMatch(normalized);
   if (match == null) {
-    throw FormatException('Enter a percentage from 0 to 100 with up to two decimals.');
+    throw FormatException(
+      'Enter a percentage from 0 to 100 with up to two decimals.',
+    );
   }
   final whole = int.parse(match.group(1)!);
   final fraction = int.parse((match.group(2) ?? '').padRight(2, '0'));

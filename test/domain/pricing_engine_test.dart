@@ -23,10 +23,7 @@ void main() {
 
   group('Money and Quantity', () {
     test('money only combines amounts in the same currency', () {
-      expect(
-        (const Money(100) + const Money(50)).minorUnits,
-        150,
-      );
+      expect((const Money(100) + const Money(50)).minorUnits, 150);
       expect(
         () => const Money(100) + const Money(50, currencyCode: 'ZiG'),
         throwsArgumentError,
@@ -43,7 +40,10 @@ void main() {
     });
 
     test('formats USD and ZiG using integer minor units', () {
-      expect(MoneyFormatter.format(123456, 'USD', locale: 'en_US'), r'$1,234.56');
+      expect(
+        MoneyFormatter.format(123456, 'USD', locale: 'en_US'),
+        r'$1,234.56',
+      );
       expect(
         MoneyFormatter.format(123456, 'ZiG', locale: 'en_US'),
         'ZiG 1,234.56',
@@ -54,6 +54,13 @@ void main() {
       );
       expect(MoneyFormatter.format(-5, 'USD', locale: 'en_US'), r'-$0.05');
       expect(MoneyFormatter.format(0, 'USD', locale: 'en_US'), r'$0.00');
+    });
+
+    test('parses payment amounts directly to integer minor units', () {
+      expect(parseMoneyToMinor('1234.5', 'USD'), 123450);
+      expect(parseMoneyToMinor('0,07', 'ZiG'), 7);
+      expect(() => parseMoneyToMinor('1.001', 'USD'), throwsFormatException);
+      expect(() => parseMoneyToMinor('abc', 'USD'), throwsFormatException);
     });
 
     test('parses entered percent values without floating point money math', () {
@@ -68,20 +75,23 @@ void main() {
   });
 
   group('PricingEngine', () {
-    test('calculates line totals using integer thousandths and half-up rounding', () {
-      final result = engine.calculate(
-        lines: const [
-          PricingLine(unitPriceMinor: 1, quantityMilli: 500),
-          PricingLine(unitPriceMinor: 2, quantityMilli: 250),
-          PricingLine(unitPriceMinor: 4, quantityMilli: 124),
-        ],
-        vatRateBasisPoints: 0,
-      );
+    test(
+      'calculates line totals using integer thousandths and half-up rounding',
+      () {
+        final result = engine.calculate(
+          lines: const [
+            PricingLine(unitPriceMinor: 1, quantityMilli: 500),
+            PricingLine(unitPriceMinor: 2, quantityMilli: 250),
+            PricingLine(unitPriceMinor: 4, quantityMilli: 124),
+          ],
+          vatRateBasisPoints: 0,
+        );
 
-      expect(result.lineTotalsMinor, [1, 1, 0]);
-      expect(result.subtotalMinor, 2);
-      expect(result.grandTotalMinor, 2);
-    });
+        expect(result.lineTotalsMinor, [1, 1, 0]);
+        expect(result.subtotalMinor, 2);
+        expect(result.grandTotalMinor, 2);
+      },
+    );
 
     test('excludes section headers while keeping row positions aligned', () {
       final result = engine.calculate(
@@ -121,7 +131,9 @@ void main() {
     });
 
     test('applies fixed discounts and caps them at subtotal', () {
-      final lines = const [PricingLine(unitPriceMinor: 1200, quantityMilli: 1000)];
+      final lines = const [
+        PricingLine(unitPriceMinor: 1200, quantityMilli: 1000),
+      ];
       final fixed = engine.calculate(
         lines: lines,
         discount: const Discount.fixed(250),
@@ -169,7 +181,10 @@ void main() {
     test('accepts large prices and quantities without floating point loss', () {
       final result = engine.calculate(
         lines: const [
-          PricingLine(unitPriceMinor: 1_000_000_000, quantityMilli: 1_000_000_000),
+          PricingLine(
+            unitPriceMinor: 1_000_000_000,
+            quantityMilli: 1_000_000_000,
+          ),
         ],
         vatRateBasisPoints: 0,
       );
@@ -177,56 +192,61 @@ void main() {
       expect(result.grandTotalMinor, 1_000_000_000_000_000);
     });
 
-    test('rejects invalid prices, quantities, row shapes, VAT and discounts', () {
-      expect(
-        () => engine.calculate(
-          lines: const [PricingLine(unitPriceMinor: -1, quantityMilli: 1000)],
-          vatRateBasisPoints: 0,
-        ),
-        throwsRangeError,
-      );
-      expect(
-        () => engine.calculate(
-          lines: const [PricingLine(unitPriceMinor: 1, quantityMilli: -1)],
-          vatRateBasisPoints: 0,
-        ),
-        throwsRangeError,
-      );
-      expect(
-        () => engine.calculate(
-          lines: const [PricingLine(isSectionHeader: true, unitPriceMinor: 0)],
-          vatRateBasisPoints: 0,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => engine.calculate(
-          lines: const [PricingLine(unitPriceMinor: 1)],
-          vatRateBasisPoints: 0,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => engine.calculate(lines: const [], vatRateBasisPoints: 10001),
-        throwsRangeError,
-      );
-      expect(
-        () => engine.calculate(
-          lines: const [],
-          vatRateBasisPoints: 0,
-          discount: const Discount.percent(10001),
-        ),
-        throwsRangeError,
-      );
-      expect(
-        () => engine.calculate(
-          lines: const [],
-          vatRateBasisPoints: 0,
-          discount: const Discount.fixed(-1),
-        ),
-        throwsRangeError,
-      );
-    });
+    test(
+      'rejects invalid prices, quantities, row shapes, VAT and discounts',
+      () {
+        expect(
+          () => engine.calculate(
+            lines: const [PricingLine(unitPriceMinor: -1, quantityMilli: 1000)],
+            vatRateBasisPoints: 0,
+          ),
+          throwsRangeError,
+        );
+        expect(
+          () => engine.calculate(
+            lines: const [PricingLine(unitPriceMinor: 1, quantityMilli: -1)],
+            vatRateBasisPoints: 0,
+          ),
+          throwsRangeError,
+        );
+        expect(
+          () => engine.calculate(
+            lines: const [
+              PricingLine(isSectionHeader: true, unitPriceMinor: 0),
+            ],
+            vatRateBasisPoints: 0,
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => engine.calculate(
+            lines: const [PricingLine(unitPriceMinor: 1)],
+            vatRateBasisPoints: 0,
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => engine.calculate(lines: const [], vatRateBasisPoints: 10001),
+          throwsRangeError,
+        );
+        expect(
+          () => engine.calculate(
+            lines: const [],
+            vatRateBasisPoints: 0,
+            discount: const Discount.percent(10001),
+          ),
+          throwsRangeError,
+        );
+        expect(
+          () => engine.calculate(
+            lines: const [],
+            vatRateBasisPoints: 0,
+            discount: const Discount.fixed(-1),
+          ),
+          throwsRangeError,
+        );
+      },
+    );
 
     test('previews adjusted document prices without changing headers or source list', () {
       final original = <int?>[101, null, 500];

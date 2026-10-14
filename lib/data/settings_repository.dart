@@ -148,12 +148,21 @@ class SettingsRepository {
         'receipt': profile.receiptPrefix.trim(),
       };
       for (final entry in prefixes.entries) {
-        await _database.into(_database.numberSequences).insertOnConflictUpdate(
-          NumberSequencesCompanion.insert(
-            documentType: entry.key,
-            prefix: entry.value,
-          ),
-        );
+        final existing = await (_database.select(_database.numberSequences)
+              ..where((row) => row.documentType.equals(entry.key)))
+            .getSingleOrNull();
+        if (existing == null) {
+          await _database.into(_database.numberSequences).insert(
+            NumberSequencesCompanion.insert(
+              documentType: entry.key,
+              prefix: entry.value,
+            ),
+          );
+        } else {
+          await (_database.update(_database.numberSequences)
+                ..where((row) => row.documentType.equals(entry.key)))
+              .write(NumberSequencesCompanion(prefix: Value(entry.value)));
+        }
       }
     });
   }

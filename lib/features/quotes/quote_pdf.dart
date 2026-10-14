@@ -11,8 +11,12 @@ import '../../domain/pricing_engine.dart';
 class QuotePdf {
   static Future<Uint8List> build(
     DocumentData quote,
-    List<DocumentLineData> lines,
-  ) async {
+    List<DocumentLineData> lines, {
+    String title = 'QUOTATION FOR BOREHOLE DRILLING',
+    String numberLabel = 'Quote',
+    String sectionTitle = 'QUOTATION DETAILS',
+    bool showValidity = true,
+  }) async {
     final pdf = pw.Document();
     final regular = pw.Font.ttf(
       await rootBundle.load('assets/fonts/EMBody-Regular.ttf'),
@@ -148,7 +152,7 @@ class QuotePdf {
             color: navy,
             child: pw.Center(
               child: pw.Text(
-                'QUOTATION FOR BOREHOLE DRILLING',
+                title,
                 style: pw.TextStyle(
                   font: bold,
                   fontSize: 14,
@@ -160,11 +164,12 @@ class QuotePdf {
           pw.Row(
             children: [
               _box(
-                'QUOTATION DETAILS',
+                sectionTitle,
                 [
-                  'Quote: ${quote.documentNumber ?? 'DRAFT'}',
+                  '$numberLabel: ${quote.documentNumber ?? 'DRAFT'}',
                   if (issued != null) 'Date: ${_date(issued)}',
-                  if (expiry != null) 'Valid until: ${_date(expiry)}',
+                  if (showValidity && expiry != null)
+                    'Valid until: ${_date(expiry)}',
                   'Currency: ${quote.currencyCode}',
                 ].join('\n'),
                 pale,
