@@ -8,6 +8,7 @@ import 'data/app_database.dart';
 import 'features/catalog/catalog_screen.dart';
 import 'features/customers/customers_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/quotes/quotes_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: KairoQuotesApp()));
@@ -181,6 +182,19 @@ class HomeScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const QuotesScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.request_quote_outlined),
+                    label: const Text('Quotations'),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(

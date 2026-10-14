@@ -28,4 +28,8 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk
 
 The current release APK is debug-signed and intended for local installation. A private release keystore is planned for Stage 9.
 
+## Quotation PDF visual check
+
+See [`docs/quotation_pdf_visual_check.md`](docs/quotation_pdf_visual_check.md) for the on-phone and side-by-side review steps. After sharing a sample PDF to this computer, render its pages with `scripts/render_quote_pdf.sh path/to/quote.pdf`. The reference image should be available as `reference/quotation_template.jpeg` for exact comparison.
+
 The app has no cloud backend or analytics SDK. The release Android manifest must remain free of the INTERNET permission.
