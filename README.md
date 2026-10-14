@@ -4,9 +4,14 @@ Offline-first Flutter Android app for EM Borehole Drilling to prepare quotations
 
 ## Development setup
 
-This project uses Flutter stable, Dart, JDK 21, and Android SDK Platform 36. From this folder, run:
+This project uses Flutter stable, Dart, JDK 21, and Android SDK Platform 36. The Flutter SDK is bundled in `.tooling/flutter`. From this folder, run:
 
 ```bash
+export PATH="$PWD/.tooling/flutter/bin:$PATH"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
+flutter config --android-sdk "$ANDROID_HOME"
+flutter doctor --android-licenses
 flutter doctor -v
 flutter pub get
 flutter run

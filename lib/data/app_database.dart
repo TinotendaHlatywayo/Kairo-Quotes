@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'tables.dart';
+import 'app_database.steps.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
@@ -25,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,11 +57,12 @@ class AppDatabase extends _$AppDatabase {
         END;
       ''');
     },
-    onUpgrade: (m, from, to) async {
-      throw UnsupportedError(
-        'No migration path is defined from schema $from to $to yet.',
-      );
-    },
+    onUpgrade: stepByStep(
+      from1To2: (m, schema) async => m.addColumn(
+        schema.catalogItems,
+        schema.catalogItems.defaultPriceCurrencyCode,
+      ),
+    ),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

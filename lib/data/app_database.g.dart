@@ -1509,6 +1509,18 @@ class $CatalogItemsTable extends CatalogItems
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _defaultPriceCurrencyCodeMeta =
+      const VerificationMeta('defaultPriceCurrencyCode');
+  @override
+  late final GeneratedColumn<String> defaultPriceCurrencyCode =
+      GeneratedColumn<String>(
+        'default_price_currency_code',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('USD'),
+      );
   static const VerificationMeta _isSectionMeta = const VerificationMeta(
     'isSection',
   );
@@ -1583,6 +1595,7 @@ class $CatalogItemsTable extends CatalogItems
     designation,
     unit,
     defaultUnitPriceMinor,
+    defaultPriceCurrencyCode,
     isSection,
     sectionId,
     sortOrder,
@@ -1627,6 +1640,15 @@ class $CatalogItemsTable extends CatalogItems
         defaultUnitPriceMinor.isAcceptableOrUnknown(
           data['default_unit_price_minor']!,
           _defaultUnitPriceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('default_price_currency_code')) {
+      context.handle(
+        _defaultPriceCurrencyCodeMeta,
+        defaultPriceCurrencyCode.isAcceptableOrUnknown(
+          data['default_price_currency_code']!,
+          _defaultPriceCurrencyCodeMeta,
         ),
       );
     }
@@ -1685,6 +1707,10 @@ class $CatalogItemsTable extends CatalogItems
         DriftSqlType.int,
         data['${effectivePrefix}default_unit_price_minor'],
       ),
+      defaultPriceCurrencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_price_currency_code'],
+      )!,
       isSection: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_section'],
@@ -1719,6 +1745,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
   final String designation;
   final String unit;
   final int? defaultUnitPriceMinor;
+  final String defaultPriceCurrencyCode;
   final bool isSection;
   final int? sectionId;
   final int sortOrder;
@@ -1729,6 +1756,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
     required this.designation,
     required this.unit,
     this.defaultUnitPriceMinor,
+    required this.defaultPriceCurrencyCode,
     required this.isSection,
     this.sectionId,
     required this.sortOrder,
@@ -1744,6 +1772,9 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
     if (!nullToAbsent || defaultUnitPriceMinor != null) {
       map['default_unit_price_minor'] = Variable<int>(defaultUnitPriceMinor);
     }
+    map['default_price_currency_code'] = Variable<String>(
+      defaultPriceCurrencyCode,
+    );
     map['is_section'] = Variable<bool>(isSection);
     if (!nullToAbsent || sectionId != null) {
       map['section_id'] = Variable<int>(sectionId);
@@ -1762,6 +1793,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
       defaultUnitPriceMinor: defaultUnitPriceMinor == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultUnitPriceMinor),
+      defaultPriceCurrencyCode: Value(defaultPriceCurrencyCode),
       isSection: Value(isSection),
       sectionId: sectionId == null && nullToAbsent
           ? const Value.absent()
@@ -1784,6 +1816,9 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
       defaultUnitPriceMinor: serializer.fromJson<int?>(
         json['defaultUnitPriceMinor'],
       ),
+      defaultPriceCurrencyCode: serializer.fromJson<String>(
+        json['defaultPriceCurrencyCode'],
+      ),
       isSection: serializer.fromJson<bool>(json['isSection']),
       sectionId: serializer.fromJson<int?>(json['sectionId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -1799,6 +1834,9 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
       'designation': serializer.toJson<String>(designation),
       'unit': serializer.toJson<String>(unit),
       'defaultUnitPriceMinor': serializer.toJson<int?>(defaultUnitPriceMinor),
+      'defaultPriceCurrencyCode': serializer.toJson<String>(
+        defaultPriceCurrencyCode,
+      ),
       'isSection': serializer.toJson<bool>(isSection),
       'sectionId': serializer.toJson<int?>(sectionId),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -1812,6 +1850,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
     String? designation,
     String? unit,
     Value<int?> defaultUnitPriceMinor = const Value.absent(),
+    String? defaultPriceCurrencyCode,
     bool? isSection,
     Value<int?> sectionId = const Value.absent(),
     int? sortOrder,
@@ -1824,6 +1863,8 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
     defaultUnitPriceMinor: defaultUnitPriceMinor.present
         ? defaultUnitPriceMinor.value
         : this.defaultUnitPriceMinor,
+    defaultPriceCurrencyCode:
+        defaultPriceCurrencyCode ?? this.defaultPriceCurrencyCode,
     isSection: isSection ?? this.isSection,
     sectionId: sectionId.present ? sectionId.value : this.sectionId,
     sortOrder: sortOrder ?? this.sortOrder,
@@ -1840,6 +1881,9 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
       defaultUnitPriceMinor: data.defaultUnitPriceMinor.present
           ? data.defaultUnitPriceMinor.value
           : this.defaultUnitPriceMinor,
+      defaultPriceCurrencyCode: data.defaultPriceCurrencyCode.present
+          ? data.defaultPriceCurrencyCode.value
+          : this.defaultPriceCurrencyCode,
       isSection: data.isSection.present ? data.isSection.value : this.isSection,
       sectionId: data.sectionId.present ? data.sectionId.value : this.sectionId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
@@ -1857,6 +1901,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
           ..write('designation: $designation, ')
           ..write('unit: $unit, ')
           ..write('defaultUnitPriceMinor: $defaultUnitPriceMinor, ')
+          ..write('defaultPriceCurrencyCode: $defaultPriceCurrencyCode, ')
           ..write('isSection: $isSection, ')
           ..write('sectionId: $sectionId, ')
           ..write('sortOrder: $sortOrder, ')
@@ -1872,6 +1917,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
     designation,
     unit,
     defaultUnitPriceMinor,
+    defaultPriceCurrencyCode,
     isSection,
     sectionId,
     sortOrder,
@@ -1886,6 +1932,7 @@ class CatalogItemData extends DataClass implements Insertable<CatalogItemData> {
           other.designation == this.designation &&
           other.unit == this.unit &&
           other.defaultUnitPriceMinor == this.defaultUnitPriceMinor &&
+          other.defaultPriceCurrencyCode == this.defaultPriceCurrencyCode &&
           other.isSection == this.isSection &&
           other.sectionId == this.sectionId &&
           other.sortOrder == this.sortOrder &&
@@ -1898,6 +1945,7 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
   final Value<String> designation;
   final Value<String> unit;
   final Value<int?> defaultUnitPriceMinor;
+  final Value<String> defaultPriceCurrencyCode;
   final Value<bool> isSection;
   final Value<int?> sectionId;
   final Value<int> sortOrder;
@@ -1908,6 +1956,7 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
     this.designation = const Value.absent(),
     this.unit = const Value.absent(),
     this.defaultUnitPriceMinor = const Value.absent(),
+    this.defaultPriceCurrencyCode = const Value.absent(),
     this.isSection = const Value.absent(),
     this.sectionId = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -1919,6 +1968,7 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
     required String designation,
     this.unit = const Value.absent(),
     this.defaultUnitPriceMinor = const Value.absent(),
+    this.defaultPriceCurrencyCode = const Value.absent(),
     this.isSection = const Value.absent(),
     this.sectionId = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -1930,6 +1980,7 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
     Expression<String>? designation,
     Expression<String>? unit,
     Expression<int>? defaultUnitPriceMinor,
+    Expression<String>? defaultPriceCurrencyCode,
     Expression<bool>? isSection,
     Expression<int>? sectionId,
     Expression<int>? sortOrder,
@@ -1942,6 +1993,8 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
       if (unit != null) 'unit': unit,
       if (defaultUnitPriceMinor != null)
         'default_unit_price_minor': defaultUnitPriceMinor,
+      if (defaultPriceCurrencyCode != null)
+        'default_price_currency_code': defaultPriceCurrencyCode,
       if (isSection != null) 'is_section': isSection,
       if (sectionId != null) 'section_id': sectionId,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -1955,6 +2008,7 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
     Value<String>? designation,
     Value<String>? unit,
     Value<int?>? defaultUnitPriceMinor,
+    Value<String>? defaultPriceCurrencyCode,
     Value<bool>? isSection,
     Value<int?>? sectionId,
     Value<int>? sortOrder,
@@ -1967,6 +2021,8 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
       unit: unit ?? this.unit,
       defaultUnitPriceMinor:
           defaultUnitPriceMinor ?? this.defaultUnitPriceMinor,
+      defaultPriceCurrencyCode:
+          defaultPriceCurrencyCode ?? this.defaultPriceCurrencyCode,
       isSection: isSection ?? this.isSection,
       sectionId: sectionId ?? this.sectionId,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -1990,6 +2046,11 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
     if (defaultUnitPriceMinor.present) {
       map['default_unit_price_minor'] = Variable<int>(
         defaultUnitPriceMinor.value,
+      );
+    }
+    if (defaultPriceCurrencyCode.present) {
+      map['default_price_currency_code'] = Variable<String>(
+        defaultPriceCurrencyCode.value,
       );
     }
     if (isSection.present) {
@@ -2017,6 +2078,7 @@ class CatalogItemsCompanion extends UpdateCompanion<CatalogItemData> {
           ..write('designation: $designation, ')
           ..write('unit: $unit, ')
           ..write('defaultUnitPriceMinor: $defaultUnitPriceMinor, ')
+          ..write('defaultPriceCurrencyCode: $defaultPriceCurrencyCode, ')
           ..write('isSection: $isSection, ')
           ..write('sectionId: $sectionId, ')
           ..write('sortOrder: $sortOrder, ')
@@ -7018,6 +7080,7 @@ typedef $$CatalogItemsTableCreateCompanionBuilder =
       required String designation,
       Value<String> unit,
       Value<int?> defaultUnitPriceMinor,
+      Value<String> defaultPriceCurrencyCode,
       Value<bool> isSection,
       Value<int?> sectionId,
       Value<int> sortOrder,
@@ -7030,6 +7093,7 @@ typedef $$CatalogItemsTableUpdateCompanionBuilder =
       Value<String> designation,
       Value<String> unit,
       Value<int?> defaultUnitPriceMinor,
+      Value<String> defaultPriceCurrencyCode,
       Value<bool> isSection,
       Value<int?> sectionId,
       Value<int> sortOrder,
@@ -7085,6 +7149,11 @@ class $$CatalogItemsTableFilterComposer
 
   ColumnFilters<int> get defaultUnitPriceMinor => $composableBuilder(
     column: $table.defaultUnitPriceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultPriceCurrencyCode => $composableBuilder(
+    column: $table.defaultPriceCurrencyCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7161,6 +7230,11 @@ class $$CatalogItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get defaultPriceCurrencyCode => $composableBuilder(
+    column: $table.defaultPriceCurrencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isSection => $composableBuilder(
     column: $table.isSection,
     builder: (column) => ColumnOrderings(column),
@@ -7227,6 +7301,11 @@ class $$CatalogItemsTableAnnotationComposer
 
   GeneratedColumn<int> get defaultUnitPriceMinor => $composableBuilder(
     column: $table.defaultUnitPriceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get defaultPriceCurrencyCode => $composableBuilder(
+    column: $table.defaultPriceCurrencyCode,
     builder: (column) => column,
   );
 
@@ -7300,6 +7379,7 @@ class $$CatalogItemsTableTableManager
                 Value<String> designation = const Value.absent(),
                 Value<String> unit = const Value.absent(),
                 Value<int?> defaultUnitPriceMinor = const Value.absent(),
+                Value<String> defaultPriceCurrencyCode = const Value.absent(),
                 Value<bool> isSection = const Value.absent(),
                 Value<int?> sectionId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -7310,6 +7390,7 @@ class $$CatalogItemsTableTableManager
                 designation: designation,
                 unit: unit,
                 defaultUnitPriceMinor: defaultUnitPriceMinor,
+                defaultPriceCurrencyCode: defaultPriceCurrencyCode,
                 isSection: isSection,
                 sectionId: sectionId,
                 sortOrder: sortOrder,
@@ -7322,6 +7403,7 @@ class $$CatalogItemsTableTableManager
                 required String designation,
                 Value<String> unit = const Value.absent(),
                 Value<int?> defaultUnitPriceMinor = const Value.absent(),
+                Value<String> defaultPriceCurrencyCode = const Value.absent(),
                 Value<bool> isSection = const Value.absent(),
                 Value<int?> sectionId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -7332,6 +7414,7 @@ class $$CatalogItemsTableTableManager
                 designation: designation,
                 unit: unit,
                 defaultUnitPriceMinor: defaultUnitPriceMinor,
+                defaultPriceCurrencyCode: defaultPriceCurrencyCode,
                 isSection: isSection,
                 sectionId: sectionId,
                 sortOrder: sortOrder,

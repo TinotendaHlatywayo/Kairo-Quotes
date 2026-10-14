@@ -12,7 +12,8 @@ class CompanyProfiles extends Table {
   TextColumn get phoneNumbers => text().withDefault(const Constant(''))();
   TextColumn get tagline => text().withDefault(const Constant(''))();
   TextColumn get signatory => text().withDefault(const Constant(''))();
-  IntColumn get vatRateBasisPoints => integer().withDefault(const Constant(1500))();
+  IntColumn get vatRateBasisPoints =>
+      integer().withDefault(const Constant(1500))();
   TextColumn get vatNumber => text().nullable()();
   TextColumn get tinNumber => text().nullable()();
   TextColumn get supportedCurrencies =>
@@ -22,7 +23,8 @@ class CompanyProfiles extends Table {
   TextColumn get invoicePrefix => text().withDefault(const Constant('INV-'))();
   TextColumn get receiptPrefix => text().withDefault(const Constant('RC-'))();
   IntColumn get numberPadding => integer().withDefault(const Constant(4))();
-  IntColumn get defaultValidityDays => integer().withDefault(const Constant(30))();
+  IntColumn get defaultValidityDays =>
+      integer().withDefault(const Constant(30))();
 }
 
 @DataClassName('CustomerData')
@@ -43,8 +45,11 @@ class CatalogItems extends Table {
   TextColumn get designation => text()();
   TextColumn get unit => text().withDefault(const Constant(''))();
   IntColumn get defaultUnitPriceMinor => integer().nullable()();
+  TextColumn get defaultPriceCurrencyCode =>
+      text().withDefault(const Constant('USD'))();
   BoolColumn get isSection => boolean().withDefault(const Constant(false))();
-  IntColumn get sectionId => integer().nullable().references(CatalogItems, #id)();
+  IntColumn get sectionId =>
+      integer().nullable().references(CatalogItems, #id)();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
@@ -62,21 +67,26 @@ class Documents extends Table {
   IntColumn get replacesDocumentId =>
       integer().nullable().references(Documents, #id)();
   TextColumn get currencyCode => text()();
-  IntColumn get vatRateBasisPoints => integer().withDefault(const Constant(1500))();
+  IntColumn get vatRateBasisPoints =>
+      integer().withDefault(const Constant(1500))();
   TextColumn get discountKind => text().withDefault(const Constant('none'))();
   IntColumn get discountValue => integer().withDefault(const Constant(0))();
   TextColumn get notes => text().withDefault(const Constant(''))();
   TextColumn get termsSnapshot => text().withDefault(const Constant(''))();
 
   // Immutable customer and company details captured when the document is created.
-  TextColumn get customerNameSnapshot => text().withDefault(const Constant(''))();
+  TextColumn get customerNameSnapshot =>
+      text().withDefault(const Constant(''))();
   TextColumn get customerLocationSnapshot =>
       text().withDefault(const Constant(''))();
-  TextColumn get customerPhoneSnapshot => text().withDefault(const Constant(''))();
-  TextColumn get companyNameSnapshot => text().withDefault(const Constant(''))();
+  TextColumn get customerPhoneSnapshot =>
+      text().withDefault(const Constant(''))();
+  TextColumn get companyNameSnapshot =>
+      text().withDefault(const Constant(''))();
   TextColumn get legalNameSnapshot => text().withDefault(const Constant(''))();
   TextColumn get addressSnapshot => text().withDefault(const Constant(''))();
-  TextColumn get phoneNumbersSnapshot => text().withDefault(const Constant(''))();
+  TextColumn get phoneNumbersSnapshot =>
+      text().withDefault(const Constant(''))();
   TextColumn get taglineSnapshot => text().withDefault(const Constant(''))();
   TextColumn get signatorySnapshot => text().withDefault(const Constant(''))();
   TextColumn get vatNumberSnapshot => text().nullable()();
@@ -90,7 +100,6 @@ class Documents extends Table {
   DateTimeColumn get voidedAt => dateTime().nullable()();
   TextColumn get voidReason => text().nullable()();
   DateTimeColumn get updatedAt => dateTime().clientDefault(DateTime.now)();
-
 }
 
 @DataClassName('DocumentLineData')
@@ -98,7 +107,8 @@ class DocumentLines extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get documentId => integer().references(Documents, #id)();
   IntColumn get sortOrder => integer()();
-  BoolColumn get isSectionHeader => boolean().withDefault(const Constant(false))();
+  BoolColumn get isSectionHeader =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get designation => text()();
   TextColumn get unit => text().withDefault(const Constant(''))();
   IntColumn get unitPriceMinor => integer().nullable()();
