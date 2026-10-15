@@ -8,6 +8,7 @@ import 'data/app_database.dart';
 import 'features/catalog/catalog_screen.dart';
 import 'features/customers/customers_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/backup_screen.dart';
 import 'features/quotes/quotes_screen.dart';
 import 'features/invoices/invoices_screen.dart';
 import 'features/records/records_screen.dart';
@@ -116,13 +117,64 @@ class StartupGate extends ConsumerWidget {
   );
 }
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({required this.profile, super.key});
 
   final CompanyProfileData profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _backupCheckStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_backupCheckStarted) return;
+    _backupCheckStarted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkBackups());
+  }
+
+  Future<void> _checkBackups() async {
+    final service = ref.read(backupServiceProvider);
+    try {
+      final reminderDue = await service.backupReminderDue();
+      await service.saveAutomaticBackup();
+      if (!reminderDue || !mounted) return;
+      final openBackup = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Create a backup'),
+          content: const Text(
+            'There was no automatic backup on this phone in the last 7 days. A new local safety backup has been saved. Would you also like to save a backup file somewhere safe?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Back up now'),
+            ),
+          ],
+        ),
+      );
+      if (openBackup == true && mounted) {
+        await Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const BackupScreen()));
+      }
+    } catch (_) {
+      // The backup controls remain available from Home if local storage is unavailable.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kairo Quotes'),
@@ -234,6 +286,19 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.people_outline),
                     label: const Text('Customers'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const BackupScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.backup_outlined),
+                    label: const Text('Backup and restore'),
                   ),
                 ),
                 const SizedBox(height: 10),

@@ -8,12 +8,17 @@ import '../data/quote_repository.dart';
 import '../data/invoice_repository.dart';
 import '../data/records_repository.dart';
 import '../data/analytics_repository.dart';
+import '../data/backup_service.dart';
 import '../domain/analytics_service.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase();
   ref.onDispose(database.close);
   return database;
+});
+
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(ref.watch(appDatabaseProvider));
 });
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {

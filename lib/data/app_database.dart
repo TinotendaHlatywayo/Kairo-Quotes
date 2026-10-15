@@ -23,7 +23,13 @@ part 'app_database.g.dart';
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
+  AppDatabase({QueryExecutor? executor, File? databaseFile})
+    : super(executor ?? _openConnection(databaseFile));
+
+  static Future<File> defaultDatabaseFile() async {
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    return File(p.join(documentsDirectory.path, 'kairo_quotes.sqlite'));
+  }
 
   @override
   int get schemaVersion => 4;
@@ -186,10 +192,10 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-LazyDatabase _openConnection() {
+LazyDatabase _openConnection([File? databaseFile]) {
   return LazyDatabase(() async {
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-    final file = File(p.join(documentsDirectory.path, 'kairo_quotes.sqlite'));
+    final file = databaseFile ?? await AppDatabase.defaultDatabaseFile();
+    await file.parent.create(recursive: true);
     return NativeDatabase.createInBackground(file);
   });
 }
