@@ -22,13 +22,15 @@ void main() {
         .get();
     final tableNames = tableRows.map((row) => row.read<String>('name')).toSet();
 
-    expect(database.schemaVersion, 4);
+    expect(database.schemaVersion, 5);
     expect(
       tableNames,
       containsAll([
         'company_profile',
         'customers',
         'catalog_items',
+        'expense_categories',
+        'expenses',
         'documents',
         'document_lines',
         'payments',

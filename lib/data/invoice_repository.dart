@@ -108,6 +108,7 @@ class InvoiceRepository {
               unit: Value(line.unit),
               unitPriceMinor: Value(line.unitPriceMinor),
               quantityMilli: Value(line.quantityMilli),
+              costPriceMinor: Value(line.costPriceMinor),
             ),
           );
     }
@@ -169,6 +170,7 @@ class InvoiceRepository {
                   unit: Value(line.unit),
                   unitPriceMinor: Value(line.unitPriceMinor),
                   quantityMilli: Value(line.quantityMilli),
+                  costPriceMinor: Value(line.costPriceMinor),
                 ),
               );
         }

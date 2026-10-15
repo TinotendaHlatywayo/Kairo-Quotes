@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/app_database.dart';
 import '../data/catalog_repository.dart';
 import '../data/customer_repository.dart';
+import '../data/expense_repository.dart';
+import '../data/profit_repository.dart';
 import '../data/settings_repository.dart';
 import '../data/quote_repository.dart';
 import '../data/invoice_repository.dart';
@@ -10,6 +12,7 @@ import '../data/records_repository.dart';
 import '../data/analytics_repository.dart';
 import '../data/backup_service.dart';
 import '../domain/analytics_service.dart';
+import '../domain/profit_service.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase();
@@ -23,6 +26,21 @@ final backupServiceProvider = Provider<BackupService>((ref) {
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepository(ref.watch(appDatabaseProvider));
+});
+
+final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
+  return ExpenseRepository(ref.watch(appDatabaseProvider));
+});
+
+final profitServiceProvider = Provider<ProfitService>((ref) {
+  return const ProfitService();
+});
+
+final profitRepositoryProvider = Provider<ProfitRepository>((ref) {
+  return ProfitRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(profitServiceProvider),
+  );
 });
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {

@@ -276,6 +276,7 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
           unit: line.unit,
           priceMinor: line.unitPriceMinor,
           quantityMilli: line.quantityMilli,
+          costPriceMinor: line.costPriceMinor,
           section: line.isSectionHeader,
         ),
       );
@@ -374,6 +375,7 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
           priceMinor: selected.defaultPriceCurrencyCode == _currency
               ? selected.defaultUnitPriceMinor
               : null,
+          costPriceMinor: selected.costPriceMinor,
           quantityMilli: selected.isSection ? null : 1000,
           section: selected.isSection,
         ),
@@ -388,55 +390,7 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
     }
   }
 
-  Future<void> _addCustom({bool section = false}) async {
-    final designation = TextEditingController();
-    final unit = TextEditingController();
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(section ? 'Add section heading' : 'Add custom item'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: designation,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Description'),
-            ),
-            if (!section)
-              TextField(
-                controller: unit,
-                decoration: const InputDecoration(labelText: 'Unit (optional)'),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-    if (accepted == true && designation.text.trim().isNotEmpty && mounted) {
-      setState(
-        () => _lines.add(
-          _QuoteLine(
-            designation.text.trim(),
-            unit: unit.text.trim(),
-            section: section,
-            quantityMilli: section ? null : 1000,
-          ),
-        ),
-      );
-    }
-    designation.dispose();
-    unit.dispose();
-  }
+
 
   Future<void> _adjustPrices() async {
     final input = TextEditingController(text: '0');
@@ -968,26 +922,9 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
                     child: const Text('Undo'),
                   ),
                 if (_editable)
-                  PopupMenuButton<String>(
-                    onSelected: (v) {
-                      if (v == 'catalog') _addCatalog();
-                      if (v == 'custom') _addCustom();
-                      if (v == 'section') _addCustom(section: true);
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'catalog',
-                        child: Text('From catalog'),
-                      ),
-                      PopupMenuItem(
-                        value: 'custom',
-                        child: Text('Custom item'),
-                      ),
-                      PopupMenuItem(
-                        value: 'section',
-                        child: Text('Section heading'),
-                      ),
-                    ],
+                  IconButton(
+                    tooltip: 'Add item from catalog',
+                    onPressed: _addCatalog,
                     icon: const Icon(Icons.add_circle_outline),
                   ),
               ],
@@ -997,7 +934,7 @@ class _QuoteEditorScreenState extends ConsumerState<QuoteEditorScreen> {
                 child: Padding(
                   padding: EdgeInsets.all(18),
                   child: Text(
-                    'Add catalog items, custom work, or section headings.',
+                    'Add items from the catalog.',
                   ),
                 ),
               ),
@@ -1249,6 +1186,7 @@ class _QuoteLine {
     String unit = '',
     int? priceMinor,
     int? quantityMilli,
+    this.costPriceMinor,
     this.section = false,
   }) : designation = TextEditingController(text: designation),
        unit = TextEditingController(text: unit),
@@ -1262,6 +1200,7 @@ class _QuoteLine {
        );
   final TextEditingController designation, unit, price, quantity;
   final bool section;
+  final int? costPriceMinor;
   int? get priceMinor => int.tryParse(price.text.split('.').first) == null
       ? null
       : _QuoteEditorScreenState._parseMinor(price.text);
@@ -1289,6 +1228,7 @@ class _QuoteLine {
     unit: unit.text,
     unitPriceMinor: section ? null : priceMinor,
     quantityMilli: section ? null : quantityMilli,
+    costPriceMinor: section ? null : costPriceMinor,
     isSectionHeader: section,
   );
   void dispose() {

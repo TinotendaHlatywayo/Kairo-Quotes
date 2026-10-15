@@ -12,7 +12,8 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'app_database.dart';
 
 const _backupMagic = 'KAIRO_QUOTES_BACKUP';
-const _backupFormatVersion = 1;
+const _backupFormatVersion = 2;
+const _oldestBackupFormatVersion = 1;
 const _appVersion = '1.0.0+1';
 const _pbkdf2Iterations = 310000;
 const _maxAutomaticBackups = 5;
@@ -26,6 +27,8 @@ class BackupManifest {
     required this.recordCounts,
     required this.checksum,
     required this.encrypted,
+    required this.receiptPhotoCount,
+    required this.receiptPhotoChecksums,
   });
 
   final String appVersion;
@@ -34,15 +37,21 @@ class BackupManifest {
   final Map<String, int> recordCounts;
   final String checksum;
   final bool encrypted;
+  final int receiptPhotoCount;
+  final Map<int, String> receiptPhotoChecksums;
 
   factory BackupManifest.fromJson(Map<String, dynamic> json) {
     final counts = json['recordCounts'];
+    final photoChecksums = json['receiptPhotoChecksums'];
+    final photoCount = json['receiptPhotoCount'] ?? 0;
     if (json['appVersion'] is! String ||
         json['schemaVersion'] is! int ||
         json['createdAt'] is! String ||
         json['checksumSha256'] is! String ||
         json['encrypted'] is! bool ||
-        counts is! Map<String, dynamic>) {
+        counts is! Map<String, dynamic> ||
+        photoCount is! int || photoCount < 0 ||
+        (photoChecksums != null && photoChecksums is! Map<String, dynamic>)) {
       throw const FormatException('The backup manifest is incomplete.');
     }
     final recordCounts = <String, int>{};
@@ -51,6 +60,20 @@ class BackupManifest {
         throw const FormatException('The backup record counts are invalid.');
       }
       recordCounts[entry.key] = entry.value as int;
+    }
+    final parsedChecksums = <int, String>{};
+    if (photoChecksums is Map<String, dynamic>) {
+      for (final entry in photoChecksums.entries) {
+        final id = int.tryParse(entry.key);
+        if (id == null || id <= 0 || entry.value is! String ||
+            (entry.value as String).length != 64) {
+          throw const FormatException('The receipt photo checksums are invalid.');
+        }
+        parsedChecksums[id] = entry.value as String;
+      }
+    }
+    if (parsedChecksums.length != photoCount) {
+      throw const FormatException('The receipt photo count does not match its checksums.');
     }
     final createdAt = DateTime.tryParse(json['createdAt'] as String);
     if (createdAt == null || (json['checksumSha256'] as String).length != 64) {
@@ -63,6 +86,8 @@ class BackupManifest {
       recordCounts: recordCounts,
       checksum: json['checksumSha256'] as String,
       encrypted: json['encrypted'] as bool,
+      receiptPhotoCount: photoCount,
+      receiptPhotoChecksums: parsedChecksums,
     );
   }
 }
@@ -73,17 +98,31 @@ class ValidatedBackup {
     required this.databaseFile,
     required this.logoBytes,
     required this.logoName,
+    this.receiptPhotos = const [],
   });
 
   final BackupManifest manifest;
   final File databaseFile;
   final Uint8List? logoBytes;
   final String? logoName;
+  final List<BackupReceiptPhoto> receiptPhotos;
 
   Future<void> dispose() async {
     final directory = databaseFile.parent;
     if (await directory.exists()) await directory.delete(recursive: true);
   }
+}
+
+class BackupReceiptPhoto {
+  const BackupReceiptPhoto({
+    required this.expenseId,
+    required this.fileName,
+    required this.bytes,
+  });
+
+  final int expenseId;
+  final String fileName;
+  final Uint8List bytes;
 }
 
 class BackupService {
@@ -99,6 +138,8 @@ class BackupService {
 
   static const _tableNames = <String>[
     'company_profile',
+    'expense_categories',
+    'expenses',
     'customers',
     'catalog_items',
     'documents',
@@ -137,12 +178,20 @@ class BackupService {
     }
     final counts = await _recordCounts();
     final logo = await _readLogo();
+    final receiptPhotos = await _collectReceiptPhotos();
     final snapshot = await _createDatabaseSnapshot();
     try {
       final payload = <String, dynamic>{
         'databaseBase64': base64Encode(await snapshot.readAsBytes()),
         'logoBase64': logo?.$1 == null ? null : base64Encode(logo!.$1),
         'logoName': logo?.$2,
+        'receiptPhotos': receiptPhotos
+            .map((photo) => {
+                  'expenseId': photo.expenseId,
+                  'fileName': photo.fileName,
+                  'bytesBase64': base64Encode(photo.bytes),
+                })
+            .toList(growable: false),
       };
       final payloadBytes = utf8.encode(jsonEncode(payload));
       final checksum = _hex((await Sha256().hash(payloadBytes)).bytes);
@@ -153,6 +202,11 @@ class BackupService {
         'recordCounts': counts,
         'checksumSha256': checksum,
         'encrypted': password != null,
+        'receiptPhotoCount': receiptPhotos.length,
+        'receiptPhotoChecksums': {
+          for (final photo in receiptPhotos)
+            '${photo.expenseId}': _hex((await Sha256().hash(photo.bytes)).bytes),
+        },
       };
       Map<String, dynamic> archive;
       if (password == null) {
@@ -515,6 +569,35 @@ class BackupService {
     if (!await file.exists()) return null;
     return (await file.readAsBytes(), p.basename(logoPath));
   }
+
+  Future<List<_ReceiptPhotoInfo>> _collectReceiptPhotos() async {
+    final expenses = await (database.select(database.expenses)
+          ..where((row) => row.receiptPhotoPath.isNotNull()))
+        .get();
+    final photos = <_ReceiptPhotoInfo>[];
+    for (final exp in expenses) {
+      if (exp.receiptPhotoPath case final path?) {
+        final file = File(path);
+        if (await file.exists()) {
+          photos.add(
+            _ReceiptPhotoInfo(
+              exp.id,
+              p.basename(file.path),
+              await file.readAsBytes(),
+            ),
+          );
+        }
+      }
+    }
+    return photos;
+  }
+}
+
+class _ReceiptPhotoInfo {
+  const _ReceiptPhotoInfo(this.expenseId, this.fileName, this.bytes);
+  final int expenseId;
+  final String fileName;
+  final Uint8List bytes;
 }
 
 class BackupPasswordRequiredException implements Exception {

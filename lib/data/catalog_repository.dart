@@ -7,6 +7,7 @@ class CatalogDraft {
     required this.designation,
     this.unit = '',
     this.defaultUnitPriceMinor,
+    this.costPriceMinor,
     this.defaultPriceCurrencyCode = 'USD',
     this.sectionId,
   });
@@ -14,6 +15,7 @@ class CatalogDraft {
   final String designation;
   final String unit;
   final int? defaultUnitPriceMinor;
+  final int? costPriceMinor;
   final String defaultPriceCurrencyCode;
   final int? sectionId;
 }
@@ -77,6 +79,9 @@ class CatalogRepository {
         'defaultUnitPriceMinor',
       );
     }
+    if (draft.costPriceMinor != null && draft.costPriceMinor! < 0) {
+      throw RangeError.value(draft.costPriceMinor!, 'costPriceMinor');
+    }
     if (draft.sectionId != null) {
       final section =
           await (_database.select(_database.catalogItems)..where(
@@ -103,6 +108,7 @@ class CatalogRepository {
               designation: name,
               unit: Value(draft.unit.trim()),
               defaultUnitPriceMinor: Value(draft.defaultUnitPriceMinor),
+              costPriceMinor: Value(draft.costPriceMinor),
               defaultPriceCurrencyCode: Value(draft.defaultPriceCurrencyCode),
               sectionId: Value(draft.sectionId),
               sortOrder: Value(nextOrder),
@@ -118,6 +124,7 @@ class CatalogRepository {
                 designation: Value(name),
                 unit: Value(draft.unit.trim()),
                 defaultUnitPriceMinor: Value(draft.defaultUnitPriceMinor),
+                costPriceMinor: Value(draft.costPriceMinor),
                 defaultPriceCurrencyCode: Value(draft.defaultPriceCurrencyCode),
                 sectionId: Value(draft.sectionId),
               ),

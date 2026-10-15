@@ -14,6 +14,8 @@ part 'app_database.g.dart';
     CompanyProfiles,
     Customers,
     CatalogItems,
+    ExpenseCategories,
+    Expenses,
     Documents,
     DocumentLines,
     Payments,
@@ -32,12 +34,14 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      await _seedExpenseCategories(this);
+      await _createExpenseIntegrityTriggers(this);
       await customStatement('''
         CREATE TRIGGER payments_match_invoice_currency
         BEFORE INSERT ON payments
@@ -64,25 +68,34 @@ class AppDatabase extends _$AppDatabase {
       ''');
       await _createStage5IntegrityTriggers();
     },
-    onUpgrade: stepByStep(
-      from1To2: (m, schema) async => m.addColumn(
-        schema.catalogItems,
-        schema.catalogItems.defaultPriceCurrencyCode,
-      ),
-      from2To3: (m, schema) async {
-        await m.database.customStatement('''
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(catalogItems, catalogItems.defaultPriceCurrencyCode);
+      }
+      if (from < 3) {
+        await customStatement('''
           INSERT INTO audit_logs (entity_type, entity_id, action, occurred_at, before_summary, after_summary, actor)
           SELECT 'quotation', id, 'sent', COALESCE(issued_at, created_at), 'issued', 'sent', 'system'
           FROM documents
           WHERE document_type = 'quotation' AND status = 'issued'
         ''');
-        await m.database.customStatement('''
+        await customStatement('''
           UPDATE documents SET status = 'sent'
           WHERE document_type = 'quotation' AND status = 'issued'
         ''');
-      },
-      from3To4: (m, schema) async => _createStage5IntegrityTriggers(m.database),
-    ),
+      }
+      if (from < 4) {
+        await _createStage5IntegrityTriggers(this);
+      }
+      if (from < 5) {
+        await m.addColumn(catalogItems, catalogItems.costPriceMinor);
+        await m.addColumn(documentLines, documentLines.costPriceMinor);
+        await m.createTable(expenseCategories);
+        await m.createTable(expenses);
+        await _seedExpenseCategories(this);
+        await _createExpenseIntegrityTriggers(this);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
@@ -190,6 +203,92 @@ class AppDatabase extends _$AppDatabase {
       END;
     ''');
   }
+}
+
+Future<void> _seedExpenseCategories(GeneratedDatabase database) async {
+  const categories = <(String, bool)>[
+    ('Diesel/Fuel', false),
+    ('Casing & Pipes', false),
+    ('Gravel', false),
+    ('Labour/Wages', false),
+    ('Transport', false),
+    ('Pump & Equipment', false),
+    ('Solar/Electrical', false),
+    ('Survey/Geophysical', false),
+    ('ZINWA Levy', false),
+    ('Rig Maintenance', false),
+    ('Rent', true),
+    ('Insurance', true),
+    ('Phone/Data', true),
+    ('Other', false),
+  ];
+  for (final (name, isOverhead) in categories) {
+    await database.customStatement(
+      'INSERT OR IGNORE INTO expense_categories (name, is_overhead, is_archived) VALUES (?, ?, 0)',
+      [name, isOverhead ? 1 : 0],
+    );
+  }
+}
+
+Future<void> _createExpenseIntegrityTriggers(GeneratedDatabase database) async {
+  await database.customStatement('''
+    CREATE TRIGGER expenses_validate_insert
+    BEFORE INSERT ON expenses
+    WHEN NEW.amount_minor <= 0
+      OR NEW.status NOT IN ('Active', 'Reversed')
+      OR NEW.payment_method NOT IN ('Cash', 'EcoCash', 'Bank transfer', 'Swipe/Card', 'Other')
+      OR (NEW.linked_invoice_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM documents d WHERE d.id = NEW.linked_invoice_id
+          AND d.document_type = 'invoice' AND d.status != 'void'
+          AND d.currency_code = NEW.currency_code
+      ))
+      OR (NEW.reversal_of_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM expenses e WHERE e.id = NEW.reversal_of_id
+          AND e.status = 'Reversed' AND NEW.status = 'Reversed'
+          AND e.amount_minor = NEW.amount_minor
+          AND e.currency_code = NEW.currency_code
+          AND e.category_id = NEW.category_id
+          AND e.linked_invoice_id IS NEW.linked_invoice_id
+      ))
+    BEGIN
+      SELECT RAISE(ABORT, 'expense does not meet amount, currency, invoice, or reversal rules');
+    END;
+  ''');
+  await database.customStatement('''
+    CREATE TRIGGER expenses_immutable_update
+    BEFORE UPDATE ON expenses
+    WHEN NOT (
+      OLD.status = 'Active' AND NEW.status = 'Reversed'
+      AND OLD.id = NEW.id AND OLD.date = NEW.date
+      AND OLD.amount_minor = NEW.amount_minor
+      AND OLD.currency_code = NEW.currency_code
+      AND OLD.category_id = NEW.category_id
+      AND OLD.description = NEW.description AND OLD.supplier IS NEW.supplier
+      AND OLD.payment_method = NEW.payment_method
+      AND OLD.linked_invoice_id IS NEW.linked_invoice_id
+      AND OLD.receipt_photo_path IS NEW.receipt_photo_path
+      AND OLD.reversal_of_id IS NEW.reversal_of_id
+      AND OLD.created_at = NEW.created_at
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'expenses are immutable; reverse and replace the entry');
+    END;
+  ''');
+  await database.customStatement('''
+    CREATE TRIGGER expenses_immutable_delete
+    BEFORE DELETE ON expenses
+    BEGIN
+      SELECT RAISE(ABORT, 'expenses cannot be deleted; reverse the entry');
+    END;
+  ''');
+  await database.customStatement('''
+    CREATE TRIGGER used_expense_categories_no_delete
+    BEFORE DELETE ON expense_categories
+    WHEN EXISTS (SELECT 1 FROM expenses WHERE category_id = OLD.id)
+    BEGIN
+      SELECT RAISE(ABORT, 'expense categories in use cannot be deleted; archive them');
+    END;
+  ''');
 }
 
 LazyDatabase _openConnection([File? databaseFile]) {

@@ -45,6 +45,7 @@ class CatalogItems extends Table {
   TextColumn get designation => text()();
   TextColumn get unit => text().withDefault(const Constant(''))();
   IntColumn get defaultUnitPriceMinor => integer().nullable()();
+  IntColumn get costPriceMinor => integer().nullable().customConstraint('CHECK (cost_price_minor IS NULL OR cost_price_minor >= 0)')();
   TextColumn get defaultPriceCurrencyCode =>
       text().withDefault(const Constant('USD'))();
   BoolColumn get isSection => boolean().withDefault(const Constant(false))();
@@ -112,7 +113,37 @@ class DocumentLines extends Table {
   TextColumn get designation => text()();
   TextColumn get unit => text().withDefault(const Constant(''))();
   IntColumn get unitPriceMinor => integer().nullable()();
+  IntColumn get costPriceMinor => integer().nullable().customConstraint('CHECK (cost_price_minor IS NULL OR cost_price_minor >= 0)')();
   IntColumn get quantityMilli => integer().nullable()();
+}
+
+@DataClassName('ExpenseCategoryData')
+class ExpenseCategories extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().unique()();
+  BoolColumn get isOverhead => boolean().withDefault(const Constant(false))();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
+}
+
+@DataClassName('ExpenseData')
+@TableIndex(name: 'expenses_date_idx', columns: {#date})
+@TableIndex(name: 'expenses_linked_invoice_idx', columns: {#linkedInvoiceId})
+@TableIndex(name: 'expenses_currency_idx', columns: {#currencyCode})
+class Expenses extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get date => dateTime()();
+  IntColumn get amountMinor => integer().customConstraint('NOT NULL CHECK (amount_minor > 0)')();
+  TextColumn get currencyCode => text()();
+  IntColumn get categoryId => integer().references(ExpenseCategories, #id)();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get supplier => text().nullable()();
+  TextColumn get paymentMethod => text()();
+  IntColumn get linkedInvoiceId => integer().nullable().references(Documents, #id)();
+  TextColumn get receiptPhotoPath => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('Active'))();
+  IntColumn get reversalOfId => integer().nullable().unique().references(Expenses, #id)();
+  DateTimeColumn get createdAt => dateTime().clientDefault(DateTime.now)();
 }
 
 @DataClassName('PaymentData')

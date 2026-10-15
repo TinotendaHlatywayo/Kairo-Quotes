@@ -9,6 +9,7 @@ class QuoteLineDraft {
     this.unit = '',
     this.unitPriceMinor,
     this.quantityMilli,
+    this.costPriceMinor,
     this.isSectionHeader = false,
   });
 
@@ -16,6 +17,7 @@ class QuoteLineDraft {
   final String unit;
   final int? unitPriceMinor;
   final int? quantityMilli;
+  final int? costPriceMinor;
   final bool isSectionHeader;
 }
 
@@ -239,6 +241,7 @@ class QuoteRepository {
               unit: Value(line.unit),
               unitPriceMinor: Value(line.unitPriceMinor),
               quantityMilli: Value(line.quantityMilli),
+              costPriceMinor: Value(line.costPriceMinor),
             ),
           );
     }
@@ -360,6 +363,7 @@ class QuoteRepository {
                 unit: Value(line.unit.trim()),
                 unitPriceMinor: Value(line.unitPriceMinor),
                 quantityMilli: Value(line.quantityMilli),
+                costPriceMinor: Value(line.costPriceMinor),
               ),
             );
       }
@@ -455,6 +459,12 @@ class QuoteRepository {
     }
     if (draft.lines.any((line) => line.designation.trim().isEmpty)) {
       throw ArgumentError('Every row needs a description.');
+    }
+    if (draft.lines.any((line) => (line.costPriceMinor ?? 0) < 0)) {
+      throw ArgumentError('Line costs cannot be negative.');
+    }
+    if (draft.lines.any((line) => line.isSectionHeader && line.costPriceMinor != null)) {
+      throw ArgumentError('Section-heading rows cannot have a cost.');
     }
     final pricingLines = draft.lines
         .map(

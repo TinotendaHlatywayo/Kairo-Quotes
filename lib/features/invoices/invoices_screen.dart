@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../../core/providers.dart';
 import '../../data/app_database.dart';
 import '../../domain/money.dart';
+import '../../domain/payment_methods.dart';
 import '../quotes/quote_pdf.dart';
 
 class InvoicesScreen extends ConsumerStatefulWidget {
@@ -291,7 +292,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
   ) async {
     final amount = TextEditingController();
     final note = TextEditingController();
-    const methods = ['Cash', 'EcoCash', 'Bank transfer', 'Swipe/Card', 'Other'];
+    const methods = paymentMethodOptions;
     String method = methods.first;
     DateTime date = DateTime.now();
     final yes = await showDialog<bool>(
