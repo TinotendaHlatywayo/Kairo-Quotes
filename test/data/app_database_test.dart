@@ -22,7 +22,7 @@ void main() {
         .get();
     final tableNames = tableRows.map((row) => row.read<String>('name')).toSet();
 
-    expect(database.schemaVersion, 5);
+    expect(database.schemaVersion, 6);
     expect(
       tableNames,
       containsAll([
@@ -129,6 +129,7 @@ void main() {
           tinNumber: '',
           supportedCurrencies: ['USD', 'ZiG'],
           logoPath: null,
+          signatureImagePath: null,
           quotePrefix: 'QT-',
           invoicePrefix: 'INV-',
           receiptPrefix: 'RC-',

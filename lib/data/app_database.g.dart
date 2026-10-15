@@ -148,6 +148,17 @@ class $CompanyProfilesTable extends CompanyProfiles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _signatureImagePathMeta =
+      const VerificationMeta('signatureImagePath');
+  @override
+  late final GeneratedColumn<String> signatureImagePath =
+      GeneratedColumn<String>(
+        'signature_image_path',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _quotePrefixMeta = const VerificationMeta(
     'quotePrefix',
   );
@@ -221,6 +232,7 @@ class $CompanyProfilesTable extends CompanyProfiles
     tinNumber,
     supportedCurrencies,
     logoPath,
+    signatureImagePath,
     quotePrefix,
     invoicePrefix,
     receiptPrefix,
@@ -320,6 +332,15 @@ class $CompanyProfilesTable extends CompanyProfiles
       context.handle(
         _logoPathMeta,
         logoPath.isAcceptableOrUnknown(data['logo_path']!, _logoPathMeta),
+      );
+    }
+    if (data.containsKey('signature_image_path')) {
+      context.handle(
+        _signatureImagePathMeta,
+        signatureImagePath.isAcceptableOrUnknown(
+          data['signature_image_path']!,
+          _signatureImagePathMeta,
+        ),
       );
     }
     if (data.containsKey('quote_prefix')) {
@@ -424,6 +445,10 @@ class $CompanyProfilesTable extends CompanyProfiles
         DriftSqlType.string,
         data['${effectivePrefix}logo_path'],
       ),
+      signatureImagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signature_image_path'],
+      ),
       quotePrefix: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}quote_prefix'],
@@ -467,6 +492,7 @@ class CompanyProfileData extends DataClass
   final String? tinNumber;
   final String supportedCurrencies;
   final String? logoPath;
+  final String? signatureImagePath;
   final String quotePrefix;
   final String invoicePrefix;
   final String receiptPrefix;
@@ -485,6 +511,7 @@ class CompanyProfileData extends DataClass
     this.tinNumber,
     required this.supportedCurrencies,
     this.logoPath,
+    this.signatureImagePath,
     required this.quotePrefix,
     required this.invoicePrefix,
     required this.receiptPrefix,
@@ -513,6 +540,9 @@ class CompanyProfileData extends DataClass
     map['supported_currencies'] = Variable<String>(supportedCurrencies);
     if (!nullToAbsent || logoPath != null) {
       map['logo_path'] = Variable<String>(logoPath);
+    }
+    if (!nullToAbsent || signatureImagePath != null) {
+      map['signature_image_path'] = Variable<String>(signatureImagePath);
     }
     map['quote_prefix'] = Variable<String>(quotePrefix);
     map['invoice_prefix'] = Variable<String>(invoicePrefix);
@@ -544,6 +574,9 @@ class CompanyProfileData extends DataClass
       logoPath: logoPath == null && nullToAbsent
           ? const Value.absent()
           : Value(logoPath),
+      signatureImagePath: signatureImagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signatureImagePath),
       quotePrefix: Value(quotePrefix),
       invoicePrefix: Value(invoicePrefix),
       receiptPrefix: Value(receiptPrefix),
@@ -572,6 +605,9 @@ class CompanyProfileData extends DataClass
         json['supportedCurrencies'],
       ),
       logoPath: serializer.fromJson<String?>(json['logoPath']),
+      signatureImagePath: serializer.fromJson<String?>(
+        json['signatureImagePath'],
+      ),
       quotePrefix: serializer.fromJson<String>(json['quotePrefix']),
       invoicePrefix: serializer.fromJson<String>(json['invoicePrefix']),
       receiptPrefix: serializer.fromJson<String>(json['receiptPrefix']),
@@ -597,6 +633,7 @@ class CompanyProfileData extends DataClass
       'tinNumber': serializer.toJson<String?>(tinNumber),
       'supportedCurrencies': serializer.toJson<String>(supportedCurrencies),
       'logoPath': serializer.toJson<String?>(logoPath),
+      'signatureImagePath': serializer.toJson<String?>(signatureImagePath),
       'quotePrefix': serializer.toJson<String>(quotePrefix),
       'invoicePrefix': serializer.toJson<String>(invoicePrefix),
       'receiptPrefix': serializer.toJson<String>(receiptPrefix),
@@ -618,6 +655,7 @@ class CompanyProfileData extends DataClass
     Value<String?> tinNumber = const Value.absent(),
     String? supportedCurrencies,
     Value<String?> logoPath = const Value.absent(),
+    Value<String?> signatureImagePath = const Value.absent(),
     String? quotePrefix,
     String? invoicePrefix,
     String? receiptPrefix,
@@ -636,6 +674,9 @@ class CompanyProfileData extends DataClass
     tinNumber: tinNumber.present ? tinNumber.value : this.tinNumber,
     supportedCurrencies: supportedCurrencies ?? this.supportedCurrencies,
     logoPath: logoPath.present ? logoPath.value : this.logoPath,
+    signatureImagePath: signatureImagePath.present
+        ? signatureImagePath.value
+        : this.signatureImagePath,
     quotePrefix: quotePrefix ?? this.quotePrefix,
     invoicePrefix: invoicePrefix ?? this.invoicePrefix,
     receiptPrefix: receiptPrefix ?? this.receiptPrefix,
@@ -664,6 +705,9 @@ class CompanyProfileData extends DataClass
           ? data.supportedCurrencies.value
           : this.supportedCurrencies,
       logoPath: data.logoPath.present ? data.logoPath.value : this.logoPath,
+      signatureImagePath: data.signatureImagePath.present
+          ? data.signatureImagePath.value
+          : this.signatureImagePath,
       quotePrefix: data.quotePrefix.present
           ? data.quotePrefix.value
           : this.quotePrefix,
@@ -697,6 +741,7 @@ class CompanyProfileData extends DataClass
           ..write('tinNumber: $tinNumber, ')
           ..write('supportedCurrencies: $supportedCurrencies, ')
           ..write('logoPath: $logoPath, ')
+          ..write('signatureImagePath: $signatureImagePath, ')
           ..write('quotePrefix: $quotePrefix, ')
           ..write('invoicePrefix: $invoicePrefix, ')
           ..write('receiptPrefix: $receiptPrefix, ')
@@ -720,6 +765,7 @@ class CompanyProfileData extends DataClass
     tinNumber,
     supportedCurrencies,
     logoPath,
+    signatureImagePath,
     quotePrefix,
     invoicePrefix,
     receiptPrefix,
@@ -742,6 +788,7 @@ class CompanyProfileData extends DataClass
           other.tinNumber == this.tinNumber &&
           other.supportedCurrencies == this.supportedCurrencies &&
           other.logoPath == this.logoPath &&
+          other.signatureImagePath == this.signatureImagePath &&
           other.quotePrefix == this.quotePrefix &&
           other.invoicePrefix == this.invoicePrefix &&
           other.receiptPrefix == this.receiptPrefix &&
@@ -762,6 +809,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
   final Value<String?> tinNumber;
   final Value<String> supportedCurrencies;
   final Value<String?> logoPath;
+  final Value<String?> signatureImagePath;
   final Value<String> quotePrefix;
   final Value<String> invoicePrefix;
   final Value<String> receiptPrefix;
@@ -780,6 +828,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
     this.tinNumber = const Value.absent(),
     this.supportedCurrencies = const Value.absent(),
     this.logoPath = const Value.absent(),
+    this.signatureImagePath = const Value.absent(),
     this.quotePrefix = const Value.absent(),
     this.invoicePrefix = const Value.absent(),
     this.receiptPrefix = const Value.absent(),
@@ -799,6 +848,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
     this.tinNumber = const Value.absent(),
     this.supportedCurrencies = const Value.absent(),
     this.logoPath = const Value.absent(),
+    this.signatureImagePath = const Value.absent(),
     this.quotePrefix = const Value.absent(),
     this.invoicePrefix = const Value.absent(),
     this.receiptPrefix = const Value.absent(),
@@ -818,6 +868,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
     Expression<String>? tinNumber,
     Expression<String>? supportedCurrencies,
     Expression<String>? logoPath,
+    Expression<String>? signatureImagePath,
     Expression<String>? quotePrefix,
     Expression<String>? invoicePrefix,
     Expression<String>? receiptPrefix,
@@ -839,6 +890,8 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
       if (supportedCurrencies != null)
         'supported_currencies': supportedCurrencies,
       if (logoPath != null) 'logo_path': logoPath,
+      if (signatureImagePath != null)
+        'signature_image_path': signatureImagePath,
       if (quotePrefix != null) 'quote_prefix': quotePrefix,
       if (invoicePrefix != null) 'invoice_prefix': invoicePrefix,
       if (receiptPrefix != null) 'receipt_prefix': receiptPrefix,
@@ -861,6 +914,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
     Value<String?>? tinNumber,
     Value<String>? supportedCurrencies,
     Value<String?>? logoPath,
+    Value<String?>? signatureImagePath,
     Value<String>? quotePrefix,
     Value<String>? invoicePrefix,
     Value<String>? receiptPrefix,
@@ -880,6 +934,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
       tinNumber: tinNumber ?? this.tinNumber,
       supportedCurrencies: supportedCurrencies ?? this.supportedCurrencies,
       logoPath: logoPath ?? this.logoPath,
+      signatureImagePath: signatureImagePath ?? this.signatureImagePath,
       quotePrefix: quotePrefix ?? this.quotePrefix,
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
       receiptPrefix: receiptPrefix ?? this.receiptPrefix,
@@ -927,6 +982,9 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
     if (logoPath.present) {
       map['logo_path'] = Variable<String>(logoPath.value);
     }
+    if (signatureImagePath.present) {
+      map['signature_image_path'] = Variable<String>(signatureImagePath.value);
+    }
     if (quotePrefix.present) {
       map['quote_prefix'] = Variable<String>(quotePrefix.value);
     }
@@ -960,6 +1018,7 @@ class CompanyProfilesCompanion extends UpdateCompanion<CompanyProfileData> {
           ..write('tinNumber: $tinNumber, ')
           ..write('supportedCurrencies: $supportedCurrencies, ')
           ..write('logoPath: $logoPath, ')
+          ..write('signatureImagePath: $signatureImagePath, ')
           ..write('quotePrefix: $quotePrefix, ')
           ..write('invoicePrefix: $invoicePrefix, ')
           ..write('receiptPrefix: $receiptPrefix, ')
@@ -7556,6 +7615,7 @@ typedef $$CompanyProfilesTableCreateCompanionBuilder =
       Value<String?> tinNumber,
       Value<String> supportedCurrencies,
       Value<String?> logoPath,
+      Value<String?> signatureImagePath,
       Value<String> quotePrefix,
       Value<String> invoicePrefix,
       Value<String> receiptPrefix,
@@ -7576,6 +7636,7 @@ typedef $$CompanyProfilesTableUpdateCompanionBuilder =
       Value<String?> tinNumber,
       Value<String> supportedCurrencies,
       Value<String?> logoPath,
+      Value<String?> signatureImagePath,
       Value<String> quotePrefix,
       Value<String> invoicePrefix,
       Value<String> receiptPrefix,
@@ -7649,6 +7710,11 @@ class $$CompanyProfilesTableFilterComposer
 
   ColumnFilters<String> get logoPath => $composableBuilder(
     column: $table.logoPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signatureImagePath => $composableBuilder(
+    column: $table.signatureImagePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7747,6 +7813,11 @@ class $$CompanyProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get signatureImagePath => $composableBuilder(
+    column: $table.signatureImagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get quotePrefix => $composableBuilder(
     column: $table.quotePrefix,
     builder: (column) => ColumnOrderings(column),
@@ -7826,6 +7897,11 @@ class $$CompanyProfilesTableAnnotationComposer
   GeneratedColumn<String> get logoPath =>
       $composableBuilder(column: $table.logoPath, builder: (column) => column);
 
+  GeneratedColumn<String> get signatureImagePath => $composableBuilder(
+    column: $table.signatureImagePath,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get quotePrefix => $composableBuilder(
     column: $table.quotePrefix,
     builder: (column) => column,
@@ -7901,6 +7977,7 @@ class $$CompanyProfilesTableTableManager
                 Value<String?> tinNumber = const Value.absent(),
                 Value<String> supportedCurrencies = const Value.absent(),
                 Value<String?> logoPath = const Value.absent(),
+                Value<String?> signatureImagePath = const Value.absent(),
                 Value<String> quotePrefix = const Value.absent(),
                 Value<String> invoicePrefix = const Value.absent(),
                 Value<String> receiptPrefix = const Value.absent(),
@@ -7919,6 +7996,7 @@ class $$CompanyProfilesTableTableManager
                 tinNumber: tinNumber,
                 supportedCurrencies: supportedCurrencies,
                 logoPath: logoPath,
+                signatureImagePath: signatureImagePath,
                 quotePrefix: quotePrefix,
                 invoicePrefix: invoicePrefix,
                 receiptPrefix: receiptPrefix,
@@ -7939,6 +8017,7 @@ class $$CompanyProfilesTableTableManager
                 Value<String?> tinNumber = const Value.absent(),
                 Value<String> supportedCurrencies = const Value.absent(),
                 Value<String?> logoPath = const Value.absent(),
+                Value<String?> signatureImagePath = const Value.absent(),
                 Value<String> quotePrefix = const Value.absent(),
                 Value<String> invoicePrefix = const Value.absent(),
                 Value<String> receiptPrefix = const Value.absent(),
@@ -7957,6 +8036,7 @@ class $$CompanyProfilesTableTableManager
                 tinNumber: tinNumber,
                 supportedCurrencies: supportedCurrencies,
                 logoPath: logoPath,
+                signatureImagePath: signatureImagePath,
                 quotePrefix: quotePrefix,
                 invoicePrefix: invoicePrefix,
                 receiptPrefix: receiptPrefix,

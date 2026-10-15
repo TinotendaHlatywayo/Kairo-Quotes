@@ -16,6 +16,7 @@ class CompanyProfileDraft {
     required this.tinNumber,
     required this.supportedCurrencies,
     required this.logoPath,
+    required this.signatureImagePath,
     required this.quotePrefix,
     required this.invoicePrefix,
     required this.receiptPrefix,
@@ -32,6 +33,7 @@ class CompanyProfileDraft {
   final String? tinNumber;
   final List<String> supportedCurrencies;
   final String? logoPath;
+  final String? signatureImagePath;
   final String quotePrefix;
   final String invoicePrefix;
   final String receiptPrefix;

@@ -26,7 +26,7 @@ flutter build apk --release
 adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
-The current release APK is debug-signed and intended for local installation. A private release keystore is planned for Stage 9.
+The release APK is debug-signed by default. See `docs/release_keystore.md` for private release signing, and `docs/user_guide.md` for the release user guide.
 
 ## Quotation PDF visual check
 

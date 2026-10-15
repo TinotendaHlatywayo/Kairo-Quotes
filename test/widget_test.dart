@@ -27,7 +27,7 @@ void main() {
     await tester.dragUntilVisible(
       find.text('VAT rate (%)'),
       find.byType(ListView),
-      const Offset(0, -400),
+      const Offset(0, -800),
     );
     expect(find.text('VAT rate (%)'), findsOneWidget);
     expect(

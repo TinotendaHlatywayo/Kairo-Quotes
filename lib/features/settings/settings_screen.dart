@@ -42,6 +42,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _receiptPrefix;
   late final TextEditingController _terms;
   late String? _logoPath;
+  late String? _signatureImagePath;
   late Set<String> _currencies;
   bool _saving = false;
 
@@ -67,6 +68,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       text: widget.terms?.content ?? defaultTerms.join('\n'),
     );
     _logoPath = profile?.logoPath;
+    _signatureImagePath = profile?.signatureImagePath;
     _currencies = profile?.supportedCurrencies
             .split(',')
             .map((code) => code.trim())
@@ -133,6 +135,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: Image.file(
                     File(_logoPath!),
                     height: 96,
+                    alignment: Alignment.centerLeft,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _saving ? null : _chooseSignatureImage,
+                  icon: const Icon(Icons.draw_outlined),
+                  label: Text(_signatureImagePath == null
+                      ? 'Add signature image'
+                      : 'Change signature image'),
+                ),
+              ),
+              if (_signatureImagePath != null && File(_signatureImagePath!).existsSync()) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(_signatureImagePath!),
+                    height: 72,
                     alignment: Alignment.centerLeft,
                     fit: BoxFit.contain,
                   ),
@@ -272,6 +296,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  Future<void> _chooseSignatureImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 400,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final supportDirectory = await getApplicationSupportDirectory();
+    final extension = path_util.extension(picked.path).toLowerCase();
+    final destination = path_util.join(
+      supportDirectory.path,
+      'company_signature${extension.isEmpty ? '.png' : extension}',
+    );
+    await File(picked.path).copy(destination);
+    if (mounted) setState(() => _signatureImagePath = destination);
+  }
+
   Future<void> _chooseLogo() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -314,6 +357,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         tinNumber: _tinNumber.text,
         supportedCurrencies: _currencies.toList(),
         logoPath: _logoPath,
+        signatureImagePath: _signatureImagePath,
         quotePrefix: _quotePrefix.text,
         invoicePrefix: _invoicePrefix.text,
         receiptPrefix: _receiptPrefix.text,

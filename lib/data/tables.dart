@@ -19,6 +19,7 @@ class CompanyProfiles extends Table {
   TextColumn get supportedCurrencies =>
       text().withDefault(const Constant('USD,ZiG'))();
   TextColumn get logoPath => text().nullable()();
+  TextColumn get signatureImagePath => text().nullable()();
   TextColumn get quotePrefix => text().withDefault(const Constant('QT-'))();
   TextColumn get invoicePrefix => text().withDefault(const Constant('INV-'))();
   TextColumn get receiptPrefix => text().withDefault(const Constant('RC-'))();

@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +93,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(expenses);
         await _seedExpenseCategories(this);
         await _createExpenseIntegrityTriggers(this);
+      }
+      if (from < 6) {
+        await m.addColumn(companyProfiles, companyProfiles.signatureImagePath);
       }
     },
     beforeOpen: (details) async {
