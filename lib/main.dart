@@ -13,6 +13,7 @@ import 'features/quotes/quotes_screen.dart';
 import 'features/invoices/invoices_screen.dart';
 import 'features/records/records_screen.dart';
 import 'features/analytics/analytics_screen.dart';
+import 'features/expenses/expenses_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: KairoQuotesApp()));
@@ -326,6 +327,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     icon: const Icon(Icons.insights_outlined),
                     label: const Text('Analytics'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ExpensesScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('Expenses & Costs'),
                   ),
                 ),
                 const SizedBox(height: 10),

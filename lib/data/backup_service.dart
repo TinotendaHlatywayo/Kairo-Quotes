@@ -13,7 +13,6 @@ import 'app_database.dart';
 
 const _backupMagic = 'KAIRO_QUOTES_BACKUP';
 const _backupFormatVersion = 2;
-const _oldestBackupFormatVersion = 1;
 const _appVersion = '1.0.0+1';
 const _pbkdf2Iterations = 310000;
 const _maxAutomaticBackups = 5;
