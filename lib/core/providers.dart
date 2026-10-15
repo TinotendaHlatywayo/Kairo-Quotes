@@ -6,6 +6,7 @@ import '../data/customer_repository.dart';
 import '../data/settings_repository.dart';
 import '../data/quote_repository.dart';
 import '../data/invoice_repository.dart';
+import '../data/records_repository.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase();
@@ -31,6 +32,10 @@ final quoteRepositoryProvider = Provider<QuoteRepository>((ref) {
 
 final invoiceRepositoryProvider = Provider<InvoiceRepository>(
   (ref) => InvoiceRepository(ref.watch(appDatabaseProvider)),
+);
+
+final recordsRepositoryProvider = Provider<RecordsRepository>(
+  (ref) => RecordsRepository(ref.watch(appDatabaseProvider)),
 );
 
 final companyProfileProvider = StreamProvider<CompanyProfileData?>((ref) {

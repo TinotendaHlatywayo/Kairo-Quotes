@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../data/app_database.dart';
 import '../../data/customer_repository.dart';
+import 'customer_history_screen.dart';
 
 class CustomersScreen extends ConsumerStatefulWidget {
   const CustomersScreen({super.key});
@@ -159,7 +160,12 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                             ),
                           ],
                         ),
-                        onTap: () => _editCustomer(customer),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                CustomerHistoryScreen(customerId: customer.id),
+                          ),
+                        ),
                       ),
                     );
                   },

@@ -496,3 +496,91 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     }
   }
 }
+
+class ReceiptDetailScreen extends ConsumerWidget {
+  const ReceiptDetailScreen({required this.receiptId, super.key});
+  final int receiptId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final db = ref.watch(appDatabaseProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Receipt details')),
+      body: FutureBuilder<(DocumentData, List<DocumentLineData>)>(
+        future: () async {
+          final receipt = await (db.select(
+            db.documents,
+          )..where((d) => d.id.equals(receiptId))).getSingleOrNull();
+          if (receipt == null || receipt.documentType != 'receipt') {
+            throw StateError('Receipt not found.');
+          }
+          final lines = await ref
+              .read(invoiceRepositoryProvider)
+              .getLines(receiptId);
+          return (receipt, lines);
+        }(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final (receipt, lines) = snapshot.data!;
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                receipt.documentNumber ?? 'Receipt',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              Text(receipt.customerNameSnapshot),
+              Text(receipt.termsSnapshot),
+              ...lines.map(
+                (line) => ListTile(
+                  title: Text(line.designation),
+                  subtitle: Text(
+                    MoneyFormatter.format(
+                      line.unitPriceMinor ?? 0,
+                      receipt.currencyCode,
+                    ),
+                  ),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final title = receipt.notes == 'PAYMENT REVERSAL'
+                      ? 'PAYMENT REVERSAL'
+                      : 'PAYMENT RECEIPT';
+                  final bytes = await QuotePdf.build(
+                    receipt,
+                    lines,
+                    title: title,
+                    numberLabel: 'Receipt',
+                    sectionTitle: 'RECEIPT DETAILS',
+                    showValidity: false,
+                  );
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(title: const Text('Receipt PDF')),
+                        body: PdfPreview(
+                          build: (_) async => bytes,
+                          canChangePageFormat: false,
+                          pdfFileName: '${receipt.documentNumber}.pdf',
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Preview receipt PDF'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}

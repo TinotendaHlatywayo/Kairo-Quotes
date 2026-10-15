@@ -10,6 +10,7 @@ import 'features/customers/customers_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/quotes/quotes_screen.dart';
 import 'features/invoices/invoices_screen.dart';
+import 'features/records/records_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: KairoQuotesApp()));
@@ -193,6 +194,19 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.receipt_long_outlined),
                     label: const Text('Invoices'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const RecordsScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.folder_open_outlined),
+                    label: const Text('All documents'),
                   ),
                 ),
                 const SizedBox(height: 10),
