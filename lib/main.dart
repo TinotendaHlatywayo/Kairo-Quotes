@@ -11,6 +11,7 @@ import 'features/settings/settings_screen.dart';
 import 'features/quotes/quotes_screen.dart';
 import 'features/invoices/invoices_screen.dart';
 import 'features/records/records_screen.dart';
+import 'features/analytics/analytics_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: KairoQuotesApp()));
@@ -233,6 +234,19 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.people_outline),
                     label: const Text('Customers'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AnalyticsScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.insights_outlined),
+                    label: const Text('Analytics'),
                   ),
                 ),
                 const SizedBox(height: 10),
