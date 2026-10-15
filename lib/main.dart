@@ -177,7 +177,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final profile = widget.profile;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kairo Quotes'),
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/logo.jpg',
+                height: 36,
+                width: 36,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Kairo Quotes'),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Company settings',
